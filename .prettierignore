@@ -1,0 +1,7 @@
+dist
+node_modules
+release
+pnpm-lock.yaml
+*.sqlite
+*.sqlite-journal
+*.sqlite-wal
