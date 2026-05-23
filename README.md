@@ -2,7 +2,7 @@
 
 Professional cross-platform PDF editor built with Electron + React + TypeScript.
 
-> **Status**: Phase 1A — Single-page PDF Viewer MVP complete
+> **Status**: Phase 4 — OCR, Preferences, PDF Security, Forms & Export complete
 
 ## Tech Stack
 
@@ -84,13 +84,23 @@ crosspdf-studio/
 
 ## Phase Progress
 
+### Foundation & Viewer
+
 - [x] Phase 0: Electron + React + TypeScript + Vite foundation
 - [x] Phase 0: Tailwind CSS, secure preload bridge, IPC handlers, and `sql.js` fallback
-- [x] Phase 1A: Open PDF through Electron dialog and `window.crosspdf`
-- [x] Phase 1A: Load PDF.js from file bytes and render the active page to canvas
-- [x] Phase 1A: Previous/next navigation, page input, zoom in/out, page count, loading/error states
-- [ ] Phase 1B: Continuous scroll viewer, visible-page rendering, and scroll-synced page tracking
-- [ ] Phase 1C: Virtual scroll/page cache, zoom presets, fit modes, thumbnails, search, and tabs
+- [x] Phase 1A: Single-page PDF viewer — open, render, navigate, zoom, loading/error states
+- [x] Phase 1B: Continuous scroll viewer, IntersectionObserver-based visible-page tracking
+- [x] Phase 1C: Fit modes (actual/fit-width/fit-page), zoom presets, thumbnails, search, tab system
+- [x] Phase 1D: Annotations — highlight, underline, strikeout, sticky-note, free-text, freehand, shapes, arrows; undo/redo, sidecar persistence
+
+### Page Operations
+
+- [x] Phase 2: Merge, split, extract, delete, reorder pages (pdf-lib in Web Worker)
+- [x] Phase 3: Page rotation (90° CW/CCW)
+
+### Advanced Features
+
+- [x] Phase 4: OCR (Tesseract.js, 42 languages), preferences (SQLite-persisted), PDF security (password-protected open), forms (AcroForm fill/flatten), export service
 
 ## Database
 
