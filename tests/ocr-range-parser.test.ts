@@ -5,13 +5,20 @@ import { describe, expect, it } from 'vitest';
  */
 function parseRange(input: string, maxPage: number): number[] {
   const pages = new Set<number>();
-  const parts = input.split(',').map((s) => s.trim()).filter(Boolean);
+  const parts = input
+    .split(',')
+    .map((s) => s.trim())
+    .filter(Boolean);
 
   for (const part of parts) {
     const rangeMatch = part.match(/^(\d+)\s*-\s*(\d+)$/);
     if (rangeMatch) {
-      const start = Math.max(1, parseInt(rangeMatch[1], 10));
-      const end = Math.min(parseInt(rangeMatch[2], 10), maxPage);
+      let start = parseInt(rangeMatch[1], 10);
+      let end = parseInt(rangeMatch[2], 10);
+      // Normalize reversed ranges (e.g. "5-3" → 3-5) before clamping
+      if (start > end) [start, end] = [end, start];
+      start = Math.max(1, start);
+      end = Math.min(end, maxPage);
       for (let i = start; i <= end; i++) pages.add(i);
     } else {
       const num = parseInt(part, 10);
@@ -66,5 +73,13 @@ describe('parseRange', () => {
 
   it('returns sorted results', () => {
     expect(parseRange('5,3,1', 10)).toEqual([1, 3, 5]);
+  });
+
+  it('normalizes reversed ranges (e.g. 5-3 → 3-5)', () => {
+    expect(parseRange('5-3', 10)).toEqual([3, 4, 5]);
+  });
+
+  it('reversed range clamped at boundaries', () => {
+    expect(parseRange('10-0', 8)).toEqual([1, 2, 3, 4, 5, 6, 7, 8]);
   });
 });

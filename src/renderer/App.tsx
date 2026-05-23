@@ -10,7 +10,9 @@ import { ExtractPagesDialog } from './components/dialogs/ExtractPagesDialog';
 import { DeletePagesDialog } from './components/dialogs/DeletePagesDialog';
 import { ReorderDialog } from './components/dialogs/ReorderDialog';
 import { OcrDialog } from './components/dialogs/OcrDialog';
+import { FormsDialog } from './components/dialogs/FormsDialog';
 import { PasswordDialog } from './components/dialogs/PasswordDialog';
+import { PasswordProtectionDialog } from './components/dialogs/PasswordProtectionDialog';
 import { PreferencesDialog } from './components/dialogs/PreferencesDialog';
 import { deletePages } from './services/pdf-ops.service';
 import { useUIStore } from './stores/ui.store';
@@ -234,10 +236,7 @@ export default function App() {
       )}
 
       {/* Page ops dialogs */}
-      <MergeDialog
-        open={activePageOpsDialog === 'merge'}
-        onClose={closePageOpsDialog}
-      />
+      <MergeDialog open={activePageOpsDialog === 'merge'} onClose={closePageOpsDialog} />
 
       {activeTab && (
         <SplitDialog
@@ -256,9 +255,7 @@ export default function App() {
           sourceFilePath={activeTab.filePath}
           sourceFileName={activeTab.fileName}
           totalPages={activeNumPages}
-          preSelectedPages={
-            (pageOpsDialogProps as { pages?: number[] })?.pages
-          }
+          preSelectedPages={(pageOpsDialogProps as { pages?: number[] })?.pages}
         />
       )}
 
@@ -291,6 +288,26 @@ export default function App() {
         />
       )}
 
+      {activeDialog === 'forms' && activeTab && (
+        <FormsDialog
+          key={`forms-${activeDialog === 'forms'}`}
+          open={true}
+          onClose={closeDialog}
+          filePath={activeTab.filePath}
+          fileName={activeTab.fileName}
+        />
+      )}
+
+      {activeDialog === 'password-protection' && activeTab && (
+        <PasswordProtectionDialog
+          key={`password-protection-${activeDialog === 'password-protection'}`}
+          open={true}
+          onClose={closeDialog}
+          filePath={activeTab.filePath}
+          fileName={activeTab.fileName}
+        />
+      )}
+
       {activeDialog === 'password' && (
         <PasswordDialog
           key={`password-${activeDialog === 'password'}`}
@@ -300,7 +317,10 @@ export default function App() {
           fileName={(dialogProps as { fileName?: string }).fileName ?? ''}
           onSuccess={(_data, password) => {
             const filePath = (dialogProps as { filePath?: string }).filePath ?? '';
-            const fileName = (dialogProps as { fileName?: string }).fileName ?? filePath.split(/[/\\]/).pop() ?? filePath;
+            const fileName =
+              (dialogProps as { fileName?: string }).fileName ??
+              filePath.split(/[/\\]/).pop() ??
+              filePath;
             openTab(filePath, fileName, password);
             closeDialog();
           }}

@@ -1,9 +1,7 @@
 import * as pdfjsLib from 'pdfjs-dist';
+import pdfjsWorkerUrl from 'pdfjs-dist/build/pdf.worker.mjs?url';
 
-pdfjsLib.GlobalWorkerOptions.workerSrc = new URL(
-  'pdfjs-dist/build/pdf.worker.mjs',
-  import.meta.url
-).toString();
+pdfjsLib.GlobalWorkerOptions.workerSrc = pdfjsWorkerUrl;
 
 export interface OcrRequest {
   id: string;
@@ -58,11 +56,9 @@ async function renderPageToImage(
     throw new Error('OffscreenCanvas 2d context not available');
   }
 
-  // pdfjs-dist types require `canvas` prop but `canvasContext` works at runtime with OffscreenCanvas
-  const renderFn = page.render as unknown as (params: Record<string, unknown>) => {
-    promise: Promise<void>;
-  };
-  await renderFn({ canvasContext: ctx, viewport }).promise;
+  await page.render({ canvasContext: ctx, viewport } as unknown as Parameters<
+    typeof page.render
+  >[0]).promise;
   const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
 
   page.cleanup();
@@ -128,9 +124,18 @@ async function processOcrRequest(request: OcrRequest): Promise<void> {
 
   try {
     // Load PDF
-    const loadingTask = pdfjsLib.getDocument({ data: pdfBytes.slice(0) });
+    const loadingTask = pdfjsLib.getDocument({
+      data: pdfBytes.slice(0),
+      useWorkerFetch: false,
+      useSystemFonts: false,
+      disableAutoFetch: true,
+      disableStream: true,
+    });
     pdfDoc = await loadingTask.promise;
 
+    if (!pdfDoc || pdfDoc.numPages <= 0) {
+      throw new Error('Failed to load PDF document: empty or invalid.');
+    }
     // Dynamic import of Tesseract
     const tesseractModule = await import('tesseract.js');
     const createWorker = tesseractModule.createWorker as unknown as TesseractWorkerFactory;
@@ -179,10 +184,19 @@ async function processOcrRequest(request: OcrRequest): Promise<void> {
       // Run OCR
       const { data } = await tesseractWorker.recognize(blob);
 
+      // Tesseract returns confidence 0–100; normalize to 0–1 for internal contract.
+      const rawConfidence = data.confidence ?? 0;
+      const confidence =
+        Number.isFinite(rawConfidence) && rawConfidence > 1
+          ? rawConfidence / 100
+          : Number.isFinite(rawConfidence)
+            ? rawConfidence
+            : 0;
+
       results.push({
         pageNumber,
         text: data.text,
-        confidence: data.confidence ?? 0,
+        confidence: Math.max(0, Math.min(1, confidence)),
       });
 
       // Report page done

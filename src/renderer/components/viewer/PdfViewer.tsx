@@ -45,7 +45,9 @@ export function PdfViewer({ tab, onOpenAnother, onPdfDocumentLoaded, viewerRef }
 
   // ── Annotations ──────────────────────────────────────────────
 
-  const annotationsForTab = useAnnotationStore((s) => s.annotationsByTab[tab.id] ?? EMPTY_ANNOTATIONS);
+  const annotationsForTab = useAnnotationStore(
+    (s) => s.annotationsByTab[tab.id] ?? EMPTY_ANNOTATIONS
+  );
   const activeTool = useAnnotationStore((s) => s.activeTool);
   const setActiveTool = useAnnotationStore((s) => s.setActiveTool);
   const undo = useAnnotationStore((s) => s.undo);
@@ -111,10 +113,12 @@ export function PdfViewer({ tab, onOpenAnother, onPdfDocumentLoaded, viewerRef }
   const [pdfData, setPdfData] = useState<ArrayBuffer | null>(null);
   const [readError, setReadError] = useState<string | null>(null);
 
-  const { pdfDocument, numPages, loading: docLoading, error: docError } = usePdfDocument(
-    pdfData,
-    tab.password
-  );
+  const {
+    pdfDocument,
+    numPages,
+    loading: docLoading,
+    error: docError,
+  } = usePdfDocument(pdfData, tab.password);
 
   // ── View state (initialized from tab store, then local) ──────
 
@@ -602,7 +606,7 @@ export function PdfViewer({ tab, onOpenAnother, onPdfDocumentLoaded, viewerRef }
   }, [tab.filePath, tab.fileName]);
 
   const handlePassword = useCallback(() => {
-    useUIStore.getState().openDialog('password', {
+    useUIStore.getState().openDialog('password-protection', {
       filePath: tab.filePath,
       fileName: tab.fileName,
     });
@@ -679,7 +683,8 @@ export function PdfViewer({ tab, onOpenAnother, onPdfDocumentLoaded, viewerRef }
           handleDeleteKey();
         }
       } else if (e.key === 'Enter') {
-        const isTextMarkup = activeTool === 'highlight' || activeTool === 'underline' || activeTool === 'strikeout';
+        const isTextMarkup =
+          activeTool === 'highlight' || activeTool === 'underline' || activeTool === 'strikeout';
         if (isTextMarkup) {
           e.preventDefault();
           if (viewMode === 'single') {
@@ -691,7 +696,9 @@ export function PdfViewer({ tab, onOpenAnother, onPdfDocumentLoaded, viewerRef }
             const sel = getSelection();
             if (sel && sel.rangeCount > 0) {
               const range = sel.getRangeAt(0);
-              const textLayer = (range.startContainer as Node).parentElement?.closest('.textLayer') as HTMLElement | null;
+              const textLayer = (range.startContainer as Node).parentElement?.closest(
+                '.textLayer'
+              ) as HTMLElement | null;
               const pageEl = textLayer?.closest('[data-page-number]') as HTMLElement | null;
               const container = textLayer?.parentElement as HTMLElement | null;
               const pageNum = pageEl ? parseInt(pageEl.dataset.pageNumber ?? '0', 10) : 0;
@@ -895,7 +902,9 @@ export function PdfViewer({ tab, onOpenAnother, onPdfDocumentLoaded, viewerRef }
             onAnnotationDoubleClick={(id) => handleAnnotationDoubleClick(id)}
             onPageClick={(e) => {
               const pageNum = parseInt(
-                (e.currentTarget as HTMLElement).closest('[data-page-number]')?.getAttribute('data-page-number') ?? '0',
+                (e.currentTarget as HTMLElement)
+                  .closest('[data-page-number]')
+                  ?.getAttribute('data-page-number') ?? '0',
                 10
               );
               if (pageNum) handlePageClick(pageNum, e);

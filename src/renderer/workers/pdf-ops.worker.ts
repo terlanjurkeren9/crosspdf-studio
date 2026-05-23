@@ -77,10 +77,7 @@ async function handleSplit(
   return results;
 }
 
-async function handleReorder(
-  source: ArrayBuffer,
-  newOrder: number[]
-): Promise<Uint8Array> {
+async function handleReorder(source: ArrayBuffer, newOrder: number[]): Promise<Uint8Array> {
   const src = await PDFDocument.load(source, { ignoreEncryption: true });
   const output = await PDFDocument.create();
 
@@ -93,10 +90,7 @@ async function handleReorder(
   return output.save({ useObjectStreams: true });
 }
 
-async function handleDelete(
-  source: ArrayBuffer,
-  pagesToDelete: number[]
-): Promise<Uint8Array> {
+async function handleDelete(source: ArrayBuffer, pagesToDelete: number[]): Promise<Uint8Array> {
   const src = await PDFDocument.load(source, { ignoreEncryption: true });
   const totalPages = src.getPageCount();
   const deleteSet = new Set(pagesToDelete.map((p) => p - 1));
@@ -119,16 +113,11 @@ async function handleDelete(
   return output.save({ useObjectStreams: true });
 }
 
-async function handleExtract(
-  source: ArrayBuffer,
-  pages: number[]
-): Promise<Uint8Array> {
+async function handleExtract(source: ArrayBuffer, pages: number[]): Promise<Uint8Array> {
   const src = await PDFDocument.load(source, { ignoreEncryption: true });
   const totalPages = src.getPageCount();
 
-  const zeroBased = pages
-    .filter((p) => p >= 1 && p <= totalPages)
-    .map((p) => p - 1);
+  const zeroBased = pages.filter((p) => p >= 1 && p <= totalPages).map((p) => p - 1);
 
   if (zeroBased.length === 0) {
     throw new Error('No valid pages to extract.');
@@ -173,9 +162,7 @@ export interface FormFieldInfo {
   options: string[];
 }
 
-async function handleGetFormFields(
-  source: ArrayBuffer
-): Promise<FormFieldInfo[]> {
+async function handleGetFormFields(source: ArrayBuffer): Promise<FormFieldInfo[]> {
   const doc = await PDFDocument.load(source, { ignoreEncryption: true });
   const form = doc.getForm();
   const fields = form.getFields();
@@ -183,31 +170,51 @@ async function handleGetFormFields(
 
   for (const field of fields) {
     const name = field.getName();
-    const fieldType = field.constructor.name.replace('PDF', '').replace('Field', '').toLowerCase();
+    const rawType = field.constructor.name;
+    const isReadonly = field.isReadOnly();
+    const isRequired = field.isRequired();
 
+    let fieldType: string;
     let value: string | undefined;
     let options: string[] = [];
+    let maxLength: number | undefined;
 
     try {
-      if ('getValue' in field && typeof (field as { getValue: () => unknown }).getValue === 'function') {
-        const raw = (field as { getValue: () => unknown }).getValue();
-        value = typeof raw === 'string' ? raw : undefined;
+      if (rawType === 'PDFTextField') {
+        fieldType = 'text';
+        const textField = form.getTextField(name);
+        value = textField.getText() ?? '';
+        maxLength = textField.getMaxLength();
+      } else if (rawType === 'PDFCheckBox') {
+        fieldType = 'checkbox';
+        const checkBox = form.getCheckBox(name);
+        value = checkBox.isChecked() ? 'true' : 'false';
+      } else if (rawType === 'PDFDropdown') {
+        fieldType = 'dropdown';
+        const dropdown = form.getDropdown(name);
+        options = dropdown.getOptions();
+        const selected = dropdown.getSelected();
+        value = selected.length > 0 ? selected[0] : '';
+      } else if (rawType === 'PDFOptionList') {
+        fieldType = 'optionlist';
+        const optionList = form.getOptionList(name);
+        options = optionList.getOptions();
+        const selected = optionList.getSelected();
+        value = selected.length > 0 ? selected[0] : '';
+      } else if (rawType === 'PDFRadioGroup') {
+        fieldType = 'radiogroup';
+        const radioGroup = form.getRadioGroup(name);
+        options = radioGroup.getOptions();
+        const selected = radioGroup.getSelected();
+        value = selected ?? '';
+      } else {
+        // Unknown field type — skip
+        continue;
       }
     } catch {
-      value = undefined;
+      // Field access error — skip this field
+      continue;
     }
-
-    try {
-      if ('getOptions' in field && typeof (field as { getOptions: () => string[] }).getOptions === 'function') {
-        options = (field as { getOptions: () => string[] }).getOptions();
-      }
-    } catch {
-      options = [];
-    }
-
-    const isReadonly = (field as { isReadonly?: () => boolean }).isReadonly?.() ?? false;
-    const isRequired = (field as { isRequired?: () => boolean }).isRequired?.() ?? false;
-    const maxLength = (field as { getMaxLength?: () => number | undefined }).getMaxLength?.() ?? undefined;
 
     result.push({
       name,
@@ -285,65 +292,51 @@ self.onmessage = async (event: MessageEvent<OpsMessage>) => {
     switch (msg.type) {
       case 'merge': {
         const data = await handleMerge(msg.sources);
-        self.postMessage(
-          { id: msg.id, type: 'success', data } satisfies OpsResponse
-        );
+        self.postMessage({ id: msg.id, type: 'success', data } satisfies OpsResponse);
         break;
       }
       case 'split': {
         const data = await handleSplit(msg.source, msg.pagesPerFile, msg.ranges);
-        self.postMessage(
-          { id: msg.id, type: 'success-multi', data } satisfies OpsResponse
-        );
+        self.postMessage({ id: msg.id, type: 'success-multi', data } satisfies OpsResponse);
         break;
       }
       case 'reorder': {
         const data = await handleReorder(msg.source, msg.newOrder);
-        self.postMessage(
-          { id: msg.id, type: 'success', data } satisfies OpsResponse
-        );
+        self.postMessage({ id: msg.id, type: 'success', data } satisfies OpsResponse);
         break;
       }
       case 'delete': {
         const data = await handleDelete(msg.source, msg.pagesToDelete);
-        self.postMessage(
-          { id: msg.id, type: 'success', data } satisfies OpsResponse
-        );
+        self.postMessage({ id: msg.id, type: 'success', data } satisfies OpsResponse);
         break;
       }
       case 'extract': {
         const data = await handleExtract(msg.source, msg.pages);
-        self.postMessage(
-          { id: msg.id, type: 'success', data } satisfies OpsResponse
-        );
+        self.postMessage({ id: msg.id, type: 'success', data } satisfies OpsResponse);
         break;
       }
       case 'rotate': {
         const data = await handleRotate(msg.source, msg.rotations);
-        self.postMessage(
-          { id: msg.id, type: 'success', data } satisfies OpsResponse
-        );
+        self.postMessage({ id: msg.id, type: 'success', data } satisfies OpsResponse);
         break;
       }
       case 'getFormFields': {
         const fields = await handleGetFormFields(msg.source);
-        self.postMessage(
-          { id: msg.id, type: 'success', data: new TextEncoder().encode(JSON.stringify(fields)).buffer as unknown as Uint8Array } satisfies OpsResponse
-        );
+        self.postMessage({
+          id: msg.id,
+          type: 'success',
+          data: new TextEncoder().encode(JSON.stringify(fields)),
+        } satisfies OpsResponse);
         break;
       }
       case 'fillFormFields': {
         const data = await handleFillFormFields(msg.source, msg.fieldValues);
-        self.postMessage(
-          { id: msg.id, type: 'success', data } satisfies OpsResponse
-        );
+        self.postMessage({ id: msg.id, type: 'success', data } satisfies OpsResponse);
         break;
       }
       case 'flattenForm': {
         const data = await handleFlattenForm(msg.source);
-        self.postMessage(
-          { id: msg.id, type: 'success', data } satisfies OpsResponse
-        );
+        self.postMessage({ id: msg.id, type: 'success', data } satisfies OpsResponse);
         break;
       }
       default:

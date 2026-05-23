@@ -1,11 +1,9 @@
 import { useState, useEffect, useRef, useMemo } from 'react';
 import { getDocument, GlobalWorkerOptions } from 'pdfjs-dist';
 import type { PDFDocumentProxy, PDFDocumentLoadingTask } from 'pdfjs-dist';
+import pdfjsWorkerUrl from 'pdfjs-dist/build/pdf.worker.mjs?url';
 
-GlobalWorkerOptions.workerSrc = new URL(
-  'pdfjs-dist/build/pdf.worker.mjs',
-  import.meta.url
-).toString();
+GlobalWorkerOptions.workerSrc = pdfjsWorkerUrl;
 
 interface UsePdfDocumentResult {
   pdfDocument: PDFDocumentProxy | null;
@@ -14,10 +12,7 @@ interface UsePdfDocumentResult {
   error: string | null;
 }
 
-export function usePdfDocument(
-  data: ArrayBuffer | null,
-  password?: string
-): UsePdfDocumentResult {
+export function usePdfDocument(data: ArrayBuffer | null, password?: string): UsePdfDocumentResult {
   const [pdfDocument, setPdfDocument] = useState<PDFDocumentProxy | null>(null);
   const [numPages, setNumPages] = useState(0);
   const [error, setError] = useState<string | null>(null);
@@ -42,9 +37,7 @@ export function usePdfDocument(
       loadingTaskRef.current = null;
       docRef.current = null;
 
-      const loadingTask = getDocument(
-        password ? { data: safeData, password } : { data: safeData }
-      );
+      const loadingTask = getDocument(password ? { data: safeData, password } : { data: safeData });
       loadingTaskRef.current = loadingTask;
 
       try {
