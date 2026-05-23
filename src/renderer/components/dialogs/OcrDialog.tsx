@@ -16,13 +16,7 @@ interface OcrDialogProps {
 
 type OcrStatus = 'idle' | 'running' | 'complete' | 'error';
 
-export function OcrDialog({
-  open,
-  onClose,
-  filePath,
-  fileName,
-  numPages,
-}: OcrDialogProps) {
+export function OcrDialog({ open, onClose, filePath, fileName, numPages }: OcrDialogProps) {
   const [status, setStatus] = useState<OcrStatus>('idle');
   const [language, setLanguage] = useState('eng');
   const [dpi, setDpi] = useState(300);
@@ -85,7 +79,8 @@ export function OcrDialog({
     try {
       const text = formatOcrExport(results, { includePageNumbers });
       const baseName = fileName.replace(/\.pdf$/i, '');
-      await saveOcrText(text, `${baseName}-ocr.txt`);
+      const saveResult = await saveOcrText(text, `${baseName}-ocr.txt`);
+      if (saveResult.canceled) return;
     } catch (err) {
       setErrorMessage(err instanceof Error ? err.message : 'Export failed');
     }
@@ -105,10 +100,7 @@ export function OcrDialog({
     }
   }, [dpiInput]);
 
-  const progress =
-    totalPages > 0
-      ? pageNumbers.indexOf(currentPage) / totalPages
-      : 0;
+  const progress = totalPages > 0 ? pageNumbers.indexOf(currentPage) / totalPages : 0;
 
   const isRunning = status === 'running';
 
@@ -124,11 +116,7 @@ export function OcrDialog({
               Export TXT
             </Button>
           )}
-          <Button
-            variant="secondary"
-            onClick={onClose}
-            disabled={isRunning}
-          >
+          <Button variant="secondary" onClick={onClose} disabled={isRunning}>
             {status === 'complete' ? 'Close' : 'Cancel'}
           </Button>
           {status !== 'complete' && (
@@ -228,8 +216,7 @@ export function OcrDialog({
           <div className="space-y-1">
             <div className="flex justify-between text-xs text-surface-500">
               <span>
-                Processing page {currentPage} ({pageNumbers.indexOf(currentPage) + 1}/
-                {totalPages})
+                Processing page {currentPage} ({pageNumbers.indexOf(currentPage) + 1}/{totalPages})
               </span>
             </div>
             <div className="h-2 bg-surface-200 dark:bg-surface-700 rounded-full overflow-hidden">
@@ -249,10 +236,13 @@ export function OcrDialog({
             </label>
             <div className="max-h-40 overflow-y-auto rounded border border-surface-200 dark:border-surface-700">
               {results.map((r) => (
-                <details key={r.pageNumber} className="border-b border-surface-200 dark:border-surface-700 last:border-none">
+                <details
+                  key={r.pageNumber}
+                  className="border-b border-surface-200 dark:border-surface-700 last:border-none"
+                >
                   <summary className="px-3 py-1.5 text-xs cursor-pointer hover:bg-surface-100 dark:hover:bg-surface-800 select-none">
-                    Page {r.pageNumber} — {r.text.length} chars —{' '}
-                    {(r.confidence * 100).toFixed(0)}% confidence
+                    Page {r.pageNumber} — {r.text.length} chars — {(r.confidence * 100).toFixed(0)}%
+                    confidence
                   </summary>
                   <pre className="px-3 py-2 text-xs whitespace-pre-wrap text-surface-600 dark:text-surface-400 bg-surface-50 dark:bg-surface-900">
                     {r.text || '(no text recognized)'}
@@ -276,13 +266,18 @@ export function OcrDialog({
 
 function parseRange(input: string, maxPage: number): number[] {
   const pages = new Set<number>();
-  const parts = input.split(',').map((s) => s.trim()).filter(Boolean);
+  const parts = input
+    .split(',')
+    .map((s) => s.trim())
+    .filter(Boolean);
 
   for (const part of parts) {
     const rangeMatch = part.match(/^(\d+)\s*-\s*(\d+)$/);
     if (rangeMatch) {
-      const start = Math.max(1, parseInt(rangeMatch[1], 10));
-      const end = Math.min(parseInt(rangeMatch[2], 10), maxPage);
+      let start = Math.max(1, parseInt(rangeMatch[1], 10));
+      let end = Math.min(parseInt(rangeMatch[2], 10), maxPage);
+      // Normalize reversed ranges (e.g. "5-3" → 3-5)
+      if (start > end) [start, end] = [end, start];
       for (let i = start; i <= end; i++) pages.add(i);
     } else {
       const num = parseInt(part, 10);

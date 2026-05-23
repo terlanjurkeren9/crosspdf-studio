@@ -130,6 +130,7 @@ export interface PdfPasswordResult {
 
 export interface ExportSaveTextResult {
   success: boolean;
+  canceled?: boolean;
   filePath?: string;
   error?: string;
 }

@@ -28,7 +28,7 @@ export function registerExportHandlers(): void {
         });
 
         if (result.canceled || !result.filePath) {
-          return { success: false, error: 'Canceled' };
+          return { success: false, canceled: true };
         }
 
         const encoder = new TextEncoder();

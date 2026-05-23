@@ -52,19 +52,16 @@ async function renderPageToImage(
   const scale = dpi / 72;
   const viewport = page.getViewport({ scale });
 
-  const canvas = new OffscreenCanvas(
-    Math.floor(viewport.width),
-    Math.floor(viewport.height)
-  );
+  const canvas = new OffscreenCanvas(Math.floor(viewport.width), Math.floor(viewport.height));
   const ctx = canvas.getContext('2d');
   if (!ctx) {
     throw new Error('OffscreenCanvas 2d context not available');
   }
 
   // pdfjs-dist types require `canvas` prop but `canvasContext` works at runtime with OffscreenCanvas
-  const renderFn = page.render as unknown as (
-    params: Record<string, unknown>
-  ) => { promise: Promise<void> };
+  const renderFn = page.render as unknown as (params: Record<string, unknown>) => {
+    promise: Promise<void>;
+  };
   await renderFn({ canvasContext: ctx, viewport }).promise;
   const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
 
@@ -101,99 +98,103 @@ function preprocessForOcr(imageData: ImageData): ImageData {
 function imageDataToBlob(imageData: ImageData): Promise<Blob> {
   const { width, height } = imageData;
 
-  return new Promise((resolve) => {
-    const canvas = new OffscreenCanvas(width, height);
-    const ctx = canvas.getContext('2d');
-    if (!ctx) {
-      const canvas2 = new OffscreenCanvas(width, height);
-      const ctx2 = canvas2.getContext('2d')!;
-      ctx2.putImageData(imageData, 0, 0);
-      canvas2.convertToBlob({ type: 'image/png' }).then(resolve);
-      return;
+  return new Promise((resolve, reject) => {
+    try {
+      const canvas = new OffscreenCanvas(width, height);
+      const ctx = canvas.getContext('2d');
+      if (!ctx) {
+        const canvas2 = new OffscreenCanvas(width, height);
+        const ctx2 = canvas2.getContext('2d');
+        if (!ctx2) {
+          reject(new Error('OffscreenCanvas 2d context not available'));
+          return;
+        }
+        ctx2.putImageData(imageData, 0, 0);
+        canvas2.convertToBlob({ type: 'image/png' }).then(resolve, reject);
+        return;
+      }
+      ctx.putImageData(imageData, 0, 0);
+      canvas.convertToBlob({ type: 'image/png' }).then(resolve, reject);
+    } catch (err) {
+      reject(err);
     }
-    ctx.putImageData(imageData, 0, 0);
-    canvas.convertToBlob({ type: 'image/png' }).then(resolve);
   });
 }
 
 async function processOcrRequest(request: OcrRequest): Promise<void> {
   const { id, pdfBytes, pageNumbers, language } = request;
+  let pdfDoc: pdfjsLib.PDFDocumentProxy | null = null;
+  let tesseractWorker: Awaited<ReturnType<TesseractWorkerFactory>> | null = null;
 
   try {
     // Load PDF
     const loadingTask = pdfjsLib.getDocument({ data: pdfBytes.slice(0) });
-    const pdfDoc = await loadingTask.promise;
+    pdfDoc = await loadingTask.promise;
 
     // Dynamic import of Tesseract
-    const { createWorker } = await import('tesseract.js');
+    const tesseractModule = await import('tesseract.js');
+    const createWorker = tesseractModule.createWorker as unknown as TesseractWorkerFactory;
 
-    const worker = await createWorker(language, 1, {
+    tesseractWorker = await createWorker(language, 1, {
       logger: () => {
         // Progress reported per-page below
       },
     });
 
     const results: OcrPageResult[] = [];
+    const totalPages = pageNumbers.length;
 
-    try {
-      const totalPages = pageNumbers.length;
+    for (let i = 0; i < totalPages; i++) {
+      const pageNumber = pageNumbers[i];
 
-      for (let i = 0; i < totalPages; i++) {
-        const pageNumber = pageNumbers[i];
+      // Report progress start
+      self.postMessage({
+        id,
+        type: 'progress',
+        pageNumber,
+        pageIndex: i,
+        totalPages,
+        progress: 0,
+      } satisfies OcrProgressEvent);
 
-        // Report progress start
-        self.postMessage({
-          id,
-          type: 'progress',
-          pageNumber,
-          pageIndex: i,
-          totalPages,
-          progress: 0,
-        } satisfies OcrProgressEvent);
+      // Render page at configured DPI
+      const imageData = await renderPageToImage(pdfDoc, pageNumber, request.dpi);
 
-        // Render page at configured DPI
-        const imageData = await renderPageToImage(pdfDoc, pageNumber, request.dpi);
+      // Preprocess for better OCR
+      const processed = preprocessForOcr(imageData);
 
-        // Preprocess for better OCR
-        const processed = preprocessForOcr(imageData);
+      // Convert to blob for Tesseract
+      const blob = await imageDataToBlob(processed);
 
-        // Convert to blob for Tesseract
-        const blob = await imageDataToBlob(processed);
+      // Report rendering done
+      self.postMessage({
+        id,
+        type: 'progress',
+        pageNumber,
+        pageIndex: i,
+        totalPages,
+        progress: 0.3,
+      } satisfies OcrProgressEvent);
 
-        // Report rendering done
-        self.postMessage({
-          id,
-          type: 'progress',
-          pageNumber,
-          pageIndex: i,
-          totalPages,
-          progress: 0.3,
-        } satisfies OcrProgressEvent);
+      // Run OCR
+      const { data } = await tesseractWorker.recognize(blob);
 
-        // Run OCR
-        const { data } = await worker.recognize(blob);
+      results.push({
+        pageNumber,
+        text: data.text,
+        confidence: data.confidence ?? 0,
+      });
 
-        results.push({
-          pageNumber,
-          text: data.text,
-          confidence: data.confidence ?? 0,
-        });
-
-        // Report page done
-        self.postMessage({
-          id,
-          type: 'progress',
-          pageNumber,
-          pageIndex: i,
-          totalPages,
-          progress: 1.0,
-        } satisfies OcrProgressEvent);
-      }
-    } finally {
-      await worker.terminate();
+      // Report page done
+      self.postMessage({
+        id,
+        type: 'progress',
+        pageNumber,
+        pageIndex: i,
+        totalPages,
+        progress: 1.0,
+      } satisfies OcrProgressEvent);
     }
-
-    await pdfDoc.destroy();
 
     self.postMessage({
       id,
@@ -206,8 +207,16 @@ async function processOcrRequest(request: OcrRequest): Promise<void> {
       type: 'error',
       message: err instanceof Error ? err.message : 'OCR processing failed',
     } satisfies OcrErrorEvent);
+  } finally {
+    if (tesseractWorker) await tesseractWorker.terminate().catch(() => {});
+    if (pdfDoc) await pdfDoc.destroy().catch(() => {});
   }
 }
+
+type TesseractWorkerFactory = (...args: unknown[]) => Promise<{
+  recognize: (blob: Blob) => Promise<{ data: { text: string; confidence?: number } }>;
+  terminate: () => Promise<void>;
+}>;
 
 self.onmessage = (event: MessageEvent<OcrRequest>) => {
   const request = event.data;

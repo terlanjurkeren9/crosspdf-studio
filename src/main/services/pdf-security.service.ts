@@ -19,9 +19,11 @@ export async function checkEncrypted(filePath: string): Promise<boolean> {
     throw new Error('Not a valid PDF file');
   }
 
-  // Check for encryption dictionary marker in first ~4KB
-  const head = buffer.subarray(0, 4096).toString('latin1');
-  return head.includes('/Encrypt');
+  // Scan the entire file for /Encrypt at word boundaries.
+  // In PDF, the encryption dictionary entry appears as "/Encrypt "
+  // or "/Encrypt<digit>" in the trailer dictionary (near end of file).
+  const content = buffer.toString('latin1');
+  return /\/Encrypt[\s\d]/.test(content);
 }
 
 export async function decryptWithPassword(
@@ -71,10 +73,7 @@ export async function encryptWithPassword(
  * When QPDF is bundled, this will invoke:
  *   qpdf --password=<password> --decrypt <input> <output>
  */
-export async function removePassword(
-  filePath: string,
-  password: string
-): Promise<ArrayBuffer> {
+export async function removePassword(filePath: string, password: string): Promise<ArrayBuffer> {
   void filePath;
   void password;
   throw new Error(
