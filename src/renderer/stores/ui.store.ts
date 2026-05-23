@@ -2,16 +2,36 @@ import { create } from 'zustand';
 
 type Theme = 'light' | 'dark' | 'system';
 
+type DialogName =
+  | 'merge'
+  | 'split'
+  | 'extract'
+  | 'delete'
+  | 'reorder'
+  | 'ocr'
+  | 'export'
+  | 'password'
+  | 'preferences'
+  | string;
+
 interface UIState {
   theme: Theme;
   sidebarOpen: boolean;
   sidebarWidth: number;
   sidebarActivePanel: string | null;
+  activePageOpsDialog: string | null;
+  activeDialog: DialogName | null;
+  pageOpsDialogProps: Record<string, unknown>;
+  dialogProps: Record<string, unknown>;
 
   setTheme: (theme: Theme) => void;
   toggleSidebar: () => void;
   setSidebarOpen: (open: boolean) => void;
   setSidebarPanel: (panel: string | null) => void;
+  openPageOpsDialog: (name: string, props?: Record<string, unknown>) => void;
+  closePageOpsDialog: () => void;
+  openDialog: (name: DialogName, props?: Record<string, unknown>) => void;
+  closeDialog: () => void;
 }
 
 export const useUIStore = create<UIState>((set) => ({
@@ -19,6 +39,10 @@ export const useUIStore = create<UIState>((set) => ({
   sidebarOpen: true,
   sidebarWidth: 260,
   sidebarActivePanel: null,
+  activePageOpsDialog: null,
+  activeDialog: null,
+  pageOpsDialogProps: {},
+  dialogProps: {},
 
   setTheme: (theme) => set({ theme }),
 
@@ -44,4 +68,15 @@ export const useUIStore = create<UIState>((set) => ({
       sidebarActivePanel: s.sidebarActivePanel === panel ? null : panel,
       sidebarOpen: true,
     })),
+
+  openPageOpsDialog: (name, props) =>
+    set({ activePageOpsDialog: name, pageOpsDialogProps: props ?? {} }),
+
+  closePageOpsDialog: () =>
+    set({ activePageOpsDialog: null, pageOpsDialogProps: {} }),
+
+  openDialog: (name, props) =>
+    set({ activeDialog: name, dialogProps: props ?? {} }),
+
+  closeDialog: () => set({ activeDialog: null, dialogProps: {} }),
 }));

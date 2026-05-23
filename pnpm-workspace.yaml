@@ -1,6 +1,7 @@
 allowBuilds:
   better-sqlite3: true
   esbuild: true
+  tesseract.js: true
 
 overrides:
   tar: ^7.5.11

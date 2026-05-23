@@ -1,0 +1,215 @@
+import * as pdfjsLib from 'pdfjs-dist';
+
+pdfjsLib.GlobalWorkerOptions.workerSrc = new URL(
+  'pdfjs-dist/build/pdf.worker.mjs',
+  import.meta.url
+).toString();
+
+export interface OcrRequest {
+  id: string;
+  pdfBytes: ArrayBuffer;
+  pageNumbers: number[];
+  language: string;
+  dpi: number;
+}
+
+export interface OcrProgressEvent {
+  id: string;
+  type: 'progress';
+  pageNumber: number;
+  pageIndex: number;
+  totalPages: number;
+  progress: number;
+}
+
+export interface OcrPageResult {
+  pageNumber: number;
+  text: string;
+  confidence: number;
+}
+
+export interface OcrCompleteEvent {
+  id: string;
+  type: 'complete';
+  results: OcrPageResult[];
+}
+
+export interface OcrErrorEvent {
+  id: string;
+  type: 'error';
+  message: string;
+}
+
+export type OcrWorkerEvent = OcrProgressEvent | OcrCompleteEvent | OcrErrorEvent;
+
+async function renderPageToImage(
+  pdfDoc: pdfjsLib.PDFDocumentProxy,
+  pageNumber: number,
+  dpi: number
+): Promise<ImageData> {
+  const page = await pdfDoc.getPage(pageNumber);
+  // PDF points to pixels: 1 point = 1/72 inch, so scale = dpi/72
+  const scale = dpi / 72;
+  const viewport = page.getViewport({ scale });
+
+  const canvas = new OffscreenCanvas(
+    Math.floor(viewport.width),
+    Math.floor(viewport.height)
+  );
+  const ctx = canvas.getContext('2d');
+  if (!ctx) {
+    throw new Error('OffscreenCanvas 2d context not available');
+  }
+
+  // pdfjs-dist types require `canvas` prop but `canvasContext` works at runtime with OffscreenCanvas
+  const renderFn = page.render as unknown as (
+    params: Record<string, unknown>
+  ) => { promise: Promise<void> };
+  await renderFn({ canvasContext: ctx, viewport }).promise;
+  const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+
+  page.cleanup();
+  return imageData;
+}
+
+/**
+ * Simple pre-processing: convert to grayscale for better OCR accuracy.
+ */
+function preprocessForOcr(imageData: ImageData): ImageData {
+  const { data, width, height } = imageData;
+  const gray = new Uint8ClampedArray(width * height * 4);
+
+  for (let i = 0; i < width * height; i++) {
+    const r = data[i * 4];
+    const g = data[i * 4 + 1];
+    const b = data[i * 4 + 2];
+    // Weighted grayscale
+    const v = 0.299 * r + 0.587 * g + 0.114 * b;
+    gray[i * 4] = v;
+    gray[i * 4 + 1] = v;
+    gray[i * 4 + 2] = v;
+    gray[i * 4 + 3] = data[i * 4 + 3];
+  }
+
+  return new ImageData(gray, width, height);
+}
+
+/**
+ * Convert ImageData to a BMP data URL for Tesseract.js (which prefers
+ * image URLs or canvas elements).
+ */
+function imageDataToBlob(imageData: ImageData): Promise<Blob> {
+  const { width, height } = imageData;
+
+  return new Promise((resolve) => {
+    const canvas = new OffscreenCanvas(width, height);
+    const ctx = canvas.getContext('2d');
+    if (!ctx) {
+      const canvas2 = new OffscreenCanvas(width, height);
+      const ctx2 = canvas2.getContext('2d')!;
+      ctx2.putImageData(imageData, 0, 0);
+      canvas2.convertToBlob({ type: 'image/png' }).then(resolve);
+      return;
+    }
+    ctx.putImageData(imageData, 0, 0);
+    canvas.convertToBlob({ type: 'image/png' }).then(resolve);
+  });
+}
+
+async function processOcrRequest(request: OcrRequest): Promise<void> {
+  const { id, pdfBytes, pageNumbers, language } = request;
+
+  try {
+    // Load PDF
+    const loadingTask = pdfjsLib.getDocument({ data: pdfBytes.slice(0) });
+    const pdfDoc = await loadingTask.promise;
+
+    // Dynamic import of Tesseract
+    const { createWorker } = await import('tesseract.js');
+
+    const worker = await createWorker(language, 1, {
+      logger: () => {
+        // Progress reported per-page below
+      },
+    });
+
+    const results: OcrPageResult[] = [];
+
+    try {
+      const totalPages = pageNumbers.length;
+
+      for (let i = 0; i < totalPages; i++) {
+        const pageNumber = pageNumbers[i];
+
+        // Report progress start
+        self.postMessage({
+          id,
+          type: 'progress',
+          pageNumber,
+          pageIndex: i,
+          totalPages,
+          progress: 0,
+        } satisfies OcrProgressEvent);
+
+        // Render page at configured DPI
+        const imageData = await renderPageToImage(pdfDoc, pageNumber, request.dpi);
+
+        // Preprocess for better OCR
+        const processed = preprocessForOcr(imageData);
+
+        // Convert to blob for Tesseract
+        const blob = await imageDataToBlob(processed);
+
+        // Report rendering done
+        self.postMessage({
+          id,
+          type: 'progress',
+          pageNumber,
+          pageIndex: i,
+          totalPages,
+          progress: 0.3,
+        } satisfies OcrProgressEvent);
+
+        // Run OCR
+        const { data } = await worker.recognize(blob);
+
+        results.push({
+          pageNumber,
+          text: data.text,
+          confidence: data.confidence ?? 0,
+        });
+
+        // Report page done
+        self.postMessage({
+          id,
+          type: 'progress',
+          pageNumber,
+          pageIndex: i,
+          totalPages,
+          progress: 1.0,
+        } satisfies OcrProgressEvent);
+      }
+    } finally {
+      await worker.terminate();
+    }
+
+    await pdfDoc.destroy();
+
+    self.postMessage({
+      id,
+      type: 'complete',
+      results,
+    } satisfies OcrCompleteEvent);
+  } catch (err) {
+    self.postMessage({
+      id,
+      type: 'error',
+      message: err instanceof Error ? err.message : 'OCR processing failed',
+    } satisfies OcrErrorEvent);
+  }
+}
+
+self.onmessage = (event: MessageEvent<OcrRequest>) => {
+  const request = event.data;
+  processOcrRequest(request);
+};

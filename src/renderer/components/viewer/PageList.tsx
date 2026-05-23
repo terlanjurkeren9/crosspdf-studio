@@ -1,11 +1,13 @@
 import { useCallback, useLayoutEffect, useRef } from 'react';
 import type { PDFDocumentProxy } from 'pdfjs-dist';
 import { PageCanvas } from './PageCanvas';
+import type { Annotation } from '../../types/annotation.types';
 
 interface PageListProps {
   pdfDocument: PDFDocumentProxy;
   numPages: number;
   zoom: number;
+  rotation?: number;
   /** The page to pre-render on mount (typically currentPage from parent). */
   initialPage?: number;
   onVisiblePageChange: (pageNumber: number) => void;
@@ -13,18 +15,32 @@ interface PageListProps {
   onPageRender: (pageNumber: number) => void;
   pageDimsMap: Map<number, { width: number; height: number }>;
   onPageDims: (pageNumber: number, dims: { width: number; height: number }) => void;
+  // Annotation props
+  annotations?: Annotation[];
+  selectedIds?: Set<string>;
+  activeTool?: string;
+  onAnnotationClick?: (id: string, e: React.MouseEvent) => void;
+  onAnnotationDoubleClick?: (id: string) => void;
+  onPageClick?: (e: React.MouseEvent) => void;
 }
 
 export function PageList({
   pdfDocument,
   numPages,
   zoom,
+  rotation = 0,
   initialPage,
   onVisiblePageChange,
   renderedPages,
   onPageRender,
   pageDimsMap,
   onPageDims,
+  annotations,
+  selectedIds,
+  activeTool,
+  onAnnotationClick,
+  onAnnotationDoubleClick,
+  onPageClick,
 }: PageListProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const observerRef = useRef<IntersectionObserver | null>(null);
@@ -169,8 +185,15 @@ export function PageList({
                   pdfDocument={pdfDocument}
                   pageNumber={pageNumber}
                   zoom={zoom}
+                  rotation={rotation}
                   onDimensions={(d) => handleDimensions(pageNumber, d)}
                   onRenderState={handleRenderState}
+                  annotations={annotations}
+                  selectedIds={selectedIds}
+                  activeTool={activeTool}
+                  onAnnotationClick={onAnnotationClick}
+                  onAnnotationDoubleClick={onAnnotationDoubleClick}
+                  onPageClick={onPageClick}
                 />
               ) : (
                 <div

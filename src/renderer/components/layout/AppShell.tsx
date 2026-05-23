@@ -75,6 +75,7 @@ export function AppShell({
           currentPage={activeCurrentPage}
           onNavigateToPage={onNavigateToPage}
           searchAutoFocus={searchAutoFocus}
+          activeTabId={activeTabId}
         />
 
         <main className="flex-1 overflow-hidden">{children}</main>

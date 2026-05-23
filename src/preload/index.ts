@@ -9,6 +9,9 @@ import type {
   ReadFileResult,
   WriteFileResult,
   PlatformInfo,
+  PdfCheckEncryptedResult,
+  PdfPasswordResult,
+  ExportSaveTextResult,
 } from '../shared/types/ipc.types';
 
 export interface WindowApi {
@@ -31,6 +34,12 @@ export interface WindowApi {
 
   getPreference(key: string): Promise<unknown>;
   setPreference(key: string, value: unknown): Promise<void>;
+
+  checkEncrypted(filePath: string): Promise<PdfCheckEncryptedResult>;
+  applyPassword(filePath: string, password: string): Promise<PdfPasswordResult>;
+  removePassword(filePath: string, password: string): Promise<PdfPasswordResult>;
+
+  saveTextFile(defaultPath: string, text: string): Promise<ExportSaveTextResult>;
 }
 
 contextBridge.exposeInMainWorld('crosspdf', {
@@ -70,6 +79,18 @@ contextBridge.exposeInMainWorld('crosspdf', {
 
   setPreference: (key: string, value: unknown) =>
     ipcRenderer.invoke(IPC_CHANNELS.DB_SET_PREFERENCE, { key, value }),
+
+  checkEncrypted: (filePath: string) =>
+    ipcRenderer.invoke(IPC_CHANNELS.PDF_CHECK_ENCRYPTED, { filePath }),
+
+  applyPassword: (filePath: string, password: string) =>
+    ipcRenderer.invoke(IPC_CHANNELS.PDF_APPLY_PASSWORD, { filePath, password }),
+
+  removePassword: (filePath: string, password: string) =>
+    ipcRenderer.invoke(IPC_CHANNELS.PDF_REMOVE_PASSWORD, { filePath, password }),
+
+  saveTextFile: (defaultPath: string, text: string) =>
+    ipcRenderer.invoke(IPC_CHANNELS.EXPORT_SAVE_TEXT, { defaultPath, text }),
 } satisfies WindowApi);
 
 declare global {

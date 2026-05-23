@@ -14,7 +14,8 @@ interface UsePdfPageResult {
 
 export function usePdfPage(
   pdfDocument: PDFDocumentProxy | null,
-  pageNumber: number
+  pageNumber: number,
+  rotation: number = 0
 ): UsePdfPageResult {
   const renderTaskRef = useRef<RenderTask | null>(null);
   const pageRef = useRef<PDFPageProxy | null>(null);
@@ -57,7 +58,7 @@ export function usePdfPage(
           return { status: 'idle', error: null, dims: null };
         }
 
-        const viewport = page.getViewport({ scale: zoom * pixelRatio });
+        const viewport = page.getViewport({ scale: zoom * pixelRatio, rotation });
 
         canvas.width = viewport.width;
         canvas.height = viewport.height;
@@ -105,7 +106,7 @@ export function usePdfPage(
         }
       }
     },
-    [pdfDocument, pageNumber, cancel]
+    [pdfDocument, pageNumber, rotation, cancel]
   );
 
   return { render, cancel };

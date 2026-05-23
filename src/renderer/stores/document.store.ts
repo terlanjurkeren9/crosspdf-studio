@@ -10,13 +10,15 @@ export interface TabState {
   zoom: number;
   fitMode: FitMode;
   viewMode: ViewMode;
+  rotation: 0 | 90 | 180 | 270;
+  password?: string;
 }
 
 interface DocumentState {
   tabs: TabState[];
   activeTabId: string | null;
 
-  openTab: (filePath: string, fileName: string) => string;
+  openTab: (filePath: string, fileName: string, password?: string) => string;
   closeTab: (tabId: string) => void;
   setActiveTab: (tabId: string) => void;
   updateTabState: (tabId: string, patch: Partial<TabState>) => void;
@@ -24,7 +26,7 @@ interface DocumentState {
   getTab: (tabId: string) => TabState | undefined;
 }
 
-function createTab(filePath: string, fileName: string): TabState {
+function createTab(filePath: string, fileName: string, password?: string): TabState {
   return {
     id: uuid(),
     filePath,
@@ -33,6 +35,8 @@ function createTab(filePath: string, fileName: string): TabState {
     zoom: 1.0,
     fitMode: 'fit-width',
     viewMode: 'single',
+    rotation: 0,
+    password,
   };
 }
 
@@ -40,7 +44,7 @@ export const useDocumentStore = create<DocumentState>((set, get) => ({
   tabs: [],
   activeTabId: null,
 
-  openTab: (filePath, fileName) => {
+  openTab: (filePath, fileName, password) => {
     // Reuse existing tab for the same file
     const existing = get().tabs.find((t) => t.filePath === filePath);
     if (existing) {
@@ -48,7 +52,7 @@ export const useDocumentStore = create<DocumentState>((set, get) => ({
       return existing.id;
     }
 
-    const tab = createTab(filePath, fileName);
+    const tab = createTab(filePath, fileName, password);
     set((s) => ({
       tabs: [...s.tabs, tab],
       activeTabId: tab.id,

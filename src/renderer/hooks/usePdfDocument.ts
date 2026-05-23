@@ -14,7 +14,10 @@ interface UsePdfDocumentResult {
   error: string | null;
 }
 
-export function usePdfDocument(data: ArrayBuffer | null): UsePdfDocumentResult {
+export function usePdfDocument(
+  data: ArrayBuffer | null,
+  password?: string
+): UsePdfDocumentResult {
   const [pdfDocument, setPdfDocument] = useState<PDFDocumentProxy | null>(null);
   const [numPages, setNumPages] = useState(0);
   const [error, setError] = useState<string | null>(null);
@@ -39,7 +42,9 @@ export function usePdfDocument(data: ArrayBuffer | null): UsePdfDocumentResult {
       loadingTaskRef.current = null;
       docRef.current = null;
 
-      const loadingTask = getDocument({ data: safeData });
+      const loadingTask = getDocument(
+        password ? { data: safeData, password } : { data: safeData }
+      );
       loadingTaskRef.current = loadingTask;
 
       try {
@@ -67,7 +72,7 @@ export function usePdfDocument(data: ArrayBuffer | null): UsePdfDocumentResult {
     return () => {
       cancelled = true;
     };
-  }, [data]);
+  }, [data, password]);
 
   useEffect(() => {
     return () => {

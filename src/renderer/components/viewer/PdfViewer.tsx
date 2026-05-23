@@ -3,15 +3,24 @@ import type { PDFDocumentProxy, RenderTask } from 'pdfjs-dist';
 import { usePdfDocument } from '../../hooks/usePdfDocument';
 import { useResizeObserver } from '../../hooks/useResizeObserver';
 import { useDocumentStore } from '../../stores/document.store';
+import { useAnnotationStore } from '../../stores/annotation.store';
+import { useUIStore } from '../../stores/ui.store';
+import { useAnnotationInteraction } from '../../hooks/useAnnotationInteraction';
 import type { TabState } from '../../stores/document.store';
 import { PageList } from './PageList';
 import { PageTextLayer } from './PageTextLayer';
+import { AnnotationLayer } from './AnnotationLayer';
 import { ViewerToolbar } from './ViewerToolbar';
 import { ViewerStatusBar } from './ViewerStatusBar';
 import { Spinner } from '../ui/Spinner';
 import { Button } from '../ui/Button';
 import { clampZoom, computeFitZoom, ZOOM_FACTOR } from '../../lib/zoom';
 import type { FitMode, ViewMode, PageDims } from '../../lib/zoom';
+import { loadAnnotationDraft, saveAnnotationDraft } from '../../services/annotation-persistence';
+import { AnnotationEditor } from './AnnotationEditor';
+import type { Annotation } from '../../types/annotation.types';
+
+const EMPTY_ANNOTATIONS: Annotation[] = [];
 
 type DocState =
   | { status: 'reading-file' }
@@ -34,12 +43,78 @@ export function PdfViewer({ tab, onOpenAnother, onPdfDocumentLoaded, viewerRef }
   const updateTabState = useDocumentStore((s) => s.updateTabState);
   const closeTab = useDocumentStore((s) => s.closeTab);
 
+  // ── Annotations ──────────────────────────────────────────────
+
+  const annotationsForTab = useAnnotationStore((s) => s.annotationsByTab[tab.id] ?? EMPTY_ANNOTATIONS);
+  const activeTool = useAnnotationStore((s) => s.activeTool);
+  const setActiveTool = useAnnotationStore((s) => s.setActiveTool);
+  const undo = useAnnotationStore((s) => s.undo);
+  const redo = useAnnotationStore((s) => s.redo);
+
+  const textLayerContainerRef = useRef<HTMLDivElement>(null);
+
+  const {
+    selectedIds,
+    selectAnnotation,
+    updateAnnotation,
+    createTextMarkupFromSelection,
+    handlePageClick,
+    handleDeleteKey,
+    setZoom,
+  } = useAnnotationInteraction(tab.id);
+
+  // ── Inline editor state ─────────────────────────────────────
+
+  const [editingAnnotation, setEditingAnnotation] = useState<{
+    id: string;
+    initialContent: string;
+    label: string;
+    anchorRect: DOMRect | null;
+  } | null>(null);
+
+  const handleAnnotationDoubleClick = useCallback(
+    (id: string) => {
+      const ann = annotationsForTab.find((a) => a.id === id);
+      if (!ann) return;
+
+      if (ann.type === 'sticky-note' || ann.type === 'free-text') {
+        const currentContent = 'content' in ann ? (ann as { content: string }).content : '';
+        // Capture anchor position from the event's implicit target
+        // We'll get the rect from the annotation's hit target via a ref or from DOM
+        const hitEl = document.querySelector(`[data-annotation-hit="${id}"]`);
+        setEditingAnnotation({
+          id,
+          initialContent: currentContent,
+          label: ann.type === 'sticky-note' ? 'Edit note' : 'Edit text',
+          anchorRect: hitEl?.getBoundingClientRect() ?? null,
+        });
+      }
+    },
+    [annotationsForTab]
+  );
+
+  const handleEditorSave = useCallback(
+    (content: string) => {
+      if (!editingAnnotation) return;
+      updateAnnotation(tab.id, editingAnnotation.id, { content } as Partial<Annotation>);
+      setEditingAnnotation(null);
+    },
+    [editingAnnotation, tab.id, updateAnnotation]
+  );
+
+  const handleEditorCancel = useCallback(() => {
+    setEditingAnnotation(null);
+  }, []);
+
   // ── File + Document ──────────────────────────────────────────
 
   const [pdfData, setPdfData] = useState<ArrayBuffer | null>(null);
   const [readError, setReadError] = useState<string | null>(null);
 
-  const { pdfDocument, numPages, loading: docLoading, error: docError } = usePdfDocument(pdfData);
+  const { pdfDocument, numPages, loading: docLoading, error: docError } = usePdfDocument(
+    pdfData,
+    tab.password
+  );
 
   // ── View state (initialized from tab store, then local) ──────
 
@@ -48,6 +123,7 @@ export function PdfViewer({ tab, onOpenAnother, onPdfDocumentLoaded, viewerRef }
   const [zoom, setZoomState] = useState(tab.zoom);
   const [currentPage, setCurrentPage] = useState(tab.currentPage);
   const [pageInput, setPageInput] = useState(String(tab.currentPage));
+  const [rotation, setRotation] = useState<0 | 90 | 180 | 270>(tab.rotation);
 
   // ── Continuous-mode state ────────────────────────────────────
 
@@ -65,6 +141,7 @@ export function PdfViewer({ tab, onOpenAnother, onPdfDocumentLoaded, viewerRef }
       setZoomState(tab.zoom);
       setCurrentPage(tab.currentPage);
       setPageInput(String(tab.currentPage));
+      setRotation(tab.rotation);
       setPdfData(null);
       setReadError(null);
       setRenderedPages(new Set());
@@ -92,8 +169,9 @@ export function PdfViewer({ tab, onOpenAnother, onPdfDocumentLoaded, viewerRef }
       fitMode,
       zoom,
       currentPage,
+      rotation,
     });
-  }, [tab.id, viewMode, fitMode, zoom, currentPage, updateTabState]);
+  }, [tab.id, viewMode, fitMode, zoom, currentPage, rotation, updateTabState]);
 
   // ── Expose pdfDocument to parent ─────────────────────────────
 
@@ -118,6 +196,68 @@ export function PdfViewer({ tab, onOpenAnother, onPdfDocumentLoaded, viewerRef }
     if (fitMode === 'custom') return zoom;
     return computeFitZoom(fitMode, pageDims, containerSize.width, containerSize.height) ?? zoom;
   }, [fitMode, zoom, pageDims, containerSize]);
+
+  // Sync effective zoom to annotation interaction hook
+  useEffect(() => {
+    setZoom(effectiveZoom);
+  }, [effectiveZoom, setZoom]);
+
+  // ── Annotation persistence ───────────────────────────────────
+
+  const setAnnotationsForTab = useAnnotationStore((s) => s.setAnnotationsForTab);
+  const persistRef = useRef(false);
+  const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const annotationsRef = useRef(annotationsForTab);
+  useEffect(() => {
+    annotationsRef.current = annotationsForTab;
+  });
+
+  // Activate persistence + load annotation draft when document becomes ready
+  useEffect(() => {
+    if (docState.status !== 'ready') return;
+    let cancelled = false;
+
+    persistRef.current = true;
+
+    (async () => {
+      const drafts = await loadAnnotationDraft(tab.filePath);
+      if (cancelled) return;
+      // Only load if drafts exist AND no annotations have been created yet
+      if (drafts && drafts.length > 0 && annotationsRef.current.length === 0) {
+        setAnnotationsForTab(tab.id, drafts);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+    // Only on mount + doc becoming ready
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [docState.status, tab.filePath]);
+
+  // Auto-save on annotation changes (debounced)
+  useEffect(() => {
+    if (!persistRef.current) return;
+
+    if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+    saveTimerRef.current = setTimeout(() => {
+      saveAnnotationDraft(tab.filePath, annotationsForTab);
+    }, 2000);
+
+    return () => {
+      if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+    };
+  }, [annotationsForTab, tab.filePath]);
+
+  // Save on unmount
+  useEffect(() => {
+    return () => {
+      if (persistRef.current && annotationsRef.current.length > 0) {
+        saveAnnotationDraft(tab.filePath, annotationsRef.current);
+      }
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // ── Read file ────────────────────────────────────────────────
 
@@ -198,6 +338,7 @@ export function PdfViewer({ tab, onOpenAnother, onPdfDocumentLoaded, viewerRef }
         page = await doc.getPage(currentPage);
         const viewport = page.getViewport({
           scale: effectiveZoom * pixelRatio,
+          rotation,
         });
 
         canvas.width = viewport.width;
@@ -233,7 +374,7 @@ export function PdfViewer({ tab, onOpenAnother, onPdfDocumentLoaded, viewerRef }
         renderTaskRef.current = null;
       }
     };
-  }, [viewMode, docState.status, currentPage, effectiveZoom, pdfDocument]);
+  }, [viewMode, docState.status, currentPage, effectiveZoom, rotation, pdfDocument]);
 
   // ── Unmount cleanup ──────────────────────────────────────────
 
@@ -396,6 +537,81 @@ export function PdfViewer({ tab, onOpenAnother, onPdfDocumentLoaded, viewerRef }
     closeTab(tab.id);
   }, [closeTab, tab.id]);
 
+  // ── Page ops handlers ────────────────────────────────────────
+
+  const handleMerge = useCallback(() => {
+    useUIStore.getState().openPageOpsDialog('merge');
+  }, []);
+
+  const handleSplit = useCallback(() => {
+    useUIStore.getState().openPageOpsDialog('split', {
+      sourceFilePath: tab.filePath,
+      sourceFileName: tab.fileName,
+      totalPages: numPages,
+    });
+  }, [tab.filePath, tab.fileName, numPages]);
+
+  const handleExtract = useCallback(() => {
+    useUIStore.getState().openPageOpsDialog('extract', {
+      sourceFilePath: tab.filePath,
+      sourceFileName: tab.fileName,
+      totalPages: numPages,
+    });
+  }, [tab.filePath, tab.fileName, numPages]);
+
+  const handleReorder = useCallback(() => {
+    useUIStore.getState().openPageOpsDialog('reorder', {
+      sourceFilePath: tab.filePath,
+      sourceFileName: tab.fileName,
+      totalPages: numPages,
+    });
+  }, [tab.filePath, tab.fileName, numPages]);
+
+  const handleDeletePage = useCallback(() => {
+    useUIStore.getState().openPageOpsDialog('delete', {
+      pages: [currentPage],
+      numPages,
+      filePath: tab.filePath,
+      fileName: tab.fileName,
+    });
+  }, [currentPage, numPages, tab.filePath, tab.fileName]);
+
+  const handleRotateCW = useCallback(() => {
+    setRotation((prev) => ((prev + 90) % 360) as 0 | 90 | 180 | 270);
+  }, []);
+
+  const handleRotateCCW = useCallback(() => {
+    setRotation((prev) => ((prev + 270) % 360) as 0 | 90 | 180 | 270);
+  }, []);
+
+  // ── Phase 4 dialog handlers ───────────────────────────────────
+
+  const handleOcr = useCallback(() => {
+    useUIStore.getState().openDialog('ocr', {
+      filePath: tab.filePath,
+      fileName: tab.fileName,
+      numPages,
+    });
+  }, [tab.filePath, tab.fileName, numPages]);
+
+  const handleForms = useCallback(() => {
+    useUIStore.getState().openDialog('forms', {
+      filePath: tab.filePath,
+      fileName: tab.fileName,
+    });
+  }, [tab.filePath, tab.fileName]);
+
+  const handlePassword = useCallback(() => {
+    useUIStore.getState().openDialog('password', {
+      filePath: tab.filePath,
+      fileName: tab.fileName,
+    });
+  }, [tab.filePath, tab.fileName]);
+
+  const handlePreferences = useCallback(() => {
+    useUIStore.getState().openDialog('preferences');
+  }, []);
+
   // ── Keyboard shortcuts ───────────────────────────────────────
 
   useEffect(() => {
@@ -451,6 +667,40 @@ export function PdfViewer({ tab, onOpenAnother, onPdfDocumentLoaded, viewerRef }
       } else if (meta && e.key === '2') {
         e.preventDefault();
         setFitMode('fit-width');
+      } else if (meta && e.key === 'z' && e.shiftKey) {
+        e.preventDefault();
+        redo(tab.id);
+      } else if (meta && e.key === 'z') {
+        e.preventDefault();
+        undo(tab.id);
+      } else if (e.key === 'Delete' || e.key === 'Backspace') {
+        if (getSelection()?.isCollapsed !== false) {
+          e.preventDefault();
+          handleDeleteKey();
+        }
+      } else if (e.key === 'Enter') {
+        const isTextMarkup = activeTool === 'highlight' || activeTool === 'underline' || activeTool === 'strikeout';
+        if (isTextMarkup) {
+          e.preventDefault();
+          if (viewMode === 'single') {
+            if (textLayerContainerRef.current) {
+              createTextMarkupFromSelection(currentPage, textLayerContainerRef.current);
+            }
+          } else {
+            // Continuous mode: find page container from selection
+            const sel = getSelection();
+            if (sel && sel.rangeCount > 0) {
+              const range = sel.getRangeAt(0);
+              const textLayer = (range.startContainer as Node).parentElement?.closest('.textLayer') as HTMLElement | null;
+              const pageEl = textLayer?.closest('[data-page-number]') as HTMLElement | null;
+              const container = textLayer?.parentElement as HTMLElement | null;
+              const pageNum = pageEl ? parseInt(pageEl.dataset.pageNumber ?? '0', 10) : 0;
+              if (container && pageNum > 0) {
+                createTextMarkupFromSelection(pageNum, container);
+              }
+            }
+          }
+        }
       }
     };
 
@@ -465,6 +715,14 @@ export function PdfViewer({ tab, onOpenAnother, onPdfDocumentLoaded, viewerRef }
     handleZoomIn,
     handleZoomOut,
     setFitMode,
+    activeTool,
+    currentPage,
+    viewMode,
+    createTextMarkupFromSelection,
+    handleDeleteKey,
+    undo,
+    redo,
+    tab.id,
   ]);
 
   const isDisabled = docState.status !== 'ready';
@@ -495,6 +753,19 @@ export function PdfViewer({ tab, onOpenAnother, onPdfDocumentLoaded, viewerRef }
         onZoomChange={setCustomZoom}
         onFitMode={setFitMode}
         onViewMode={handleViewModeChange}
+        activeTool={activeTool}
+        onToolChange={setActiveTool}
+        onRotateCW={handleRotateCW}
+        onRotateCCW={handleRotateCCW}
+        onDeletePage={handleDeletePage}
+        onMerge={handleMerge}
+        onSplit={handleSplit}
+        onExtract={handleExtract}
+        onReorder={handleReorder}
+        onOcr={handleOcr}
+        onForms={handleForms}
+        onPassword={handlePassword}
+        onPreferences={handlePreferences}
       />
 
       {/* Content area */}
@@ -573,18 +844,31 @@ export function PdfViewer({ tab, onOpenAnother, onPdfDocumentLoaded, viewerRef }
 
             {!renderError && (
               <div className="p-4">
-                <div className="relative">
+                <div className="relative" ref={textLayerContainerRef}>
                   <canvas
                     ref={canvasRef}
                     className="block shadow bg-white"
                     aria-label={`Page ${currentPage} of ${numPages}`}
                   />
                   {pdfDocument && (
-                    <PageTextLayer
-                      pdfDocument={pdfDocument}
-                      pageNumber={currentPage}
-                      zoom={effectiveZoom}
-                    />
+                    <>
+                      <PageTextLayer
+                        pdfDocument={pdfDocument}
+                        pageNumber={currentPage}
+                        zoom={effectiveZoom}
+                      />
+                      <AnnotationLayer
+                        annotations={annotationsForTab}
+                        pageNumber={currentPage}
+                        zoom={effectiveZoom}
+                        pageDims={pageDims}
+                        selectedIds={selectedIds}
+                        activeTool={activeTool}
+                        onAnnotationClick={(id) => selectAnnotation(id)}
+                        onAnnotationDoubleClick={(id) => handleAnnotationDoubleClick(id)}
+                        onPageClick={(e) => handlePageClick(currentPage, e)}
+                      />
+                    </>
                   )}
                 </div>
               </div>
@@ -597,12 +881,25 @@ export function PdfViewer({ tab, onOpenAnother, onPdfDocumentLoaded, viewerRef }
             pdfDocument={pdfDocument}
             numPages={numPages}
             zoom={effectiveZoom}
+            rotation={rotation}
             initialPage={currentPage}
             onVisiblePageChange={handleVisiblePageChange}
             renderedPages={renderedPages}
             onPageRender={addRenderedPage}
             pageDimsMap={pageDimsMap}
             onPageDims={handlePageDims}
+            annotations={annotationsForTab}
+            selectedIds={selectedIds}
+            activeTool={activeTool}
+            onAnnotationClick={(id) => selectAnnotation(id)}
+            onAnnotationDoubleClick={(id) => handleAnnotationDoubleClick(id)}
+            onPageClick={(e) => {
+              const pageNum = parseInt(
+                (e.currentTarget as HTMLElement).closest('[data-page-number]')?.getAttribute('data-page-number') ?? '0',
+                10
+              );
+              if (pageNum) handlePageClick(pageNum, e);
+            }}
           />
         )}
       </div>
@@ -615,6 +912,16 @@ export function PdfViewer({ tab, onOpenAnother, onPdfDocumentLoaded, viewerRef }
         fitMode={fitMode}
         viewMode={viewMode}
       />
+
+      {editingAnnotation && (
+        <AnnotationEditor
+          initialContent={editingAnnotation.initialContent}
+          label={editingAnnotation.label}
+          anchorRect={editingAnnotation.anchorRect}
+          onSave={handleEditorSave}
+          onCancel={handleEditorCancel}
+        />
+      )}
     </div>
   );
 }

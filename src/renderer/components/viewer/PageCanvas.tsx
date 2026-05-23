@@ -3,27 +3,44 @@ import type { PDFDocumentProxy } from 'pdfjs-dist';
 import type { PageRenderState } from '../../hooks/usePdfPage';
 import { usePdfPage } from '../../hooks/usePdfPage';
 import { PageTextLayer } from './PageTextLayer';
+import { AnnotationLayer } from './AnnotationLayer';
 import { Spinner } from '../ui/Spinner';
+import type { Annotation } from '../../types/annotation.types';
 
 interface PageCanvasProps {
   pdfDocument: PDFDocumentProxy;
   pageNumber: number;
   zoom: number;
+  rotation?: number;
   onDimensions?: (dims: { width: number; height: number }) => void;
   onRenderState?: (state: PageRenderState) => void;
   className?: string;
+  // Annotation props
+  annotations?: Annotation[];
+  selectedIds?: Set<string>;
+  activeTool?: string;
+  onAnnotationClick?: (id: string, e: React.MouseEvent) => void;
+  onAnnotationDoubleClick?: (id: string) => void;
+  onPageClick?: (e: React.MouseEvent) => void;
 }
 
 export function PageCanvas({
   pdfDocument,
   pageNumber,
   zoom,
+  rotation = 0,
   onDimensions,
   onRenderState,
   className = '',
+  annotations,
+  selectedIds,
+  activeTool,
+  onAnnotationClick,
+  onAnnotationDoubleClick,
+  onPageClick,
 }: PageCanvasProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const { render, cancel } = usePdfPage(pdfDocument, pageNumber);
+  const { render, cancel } = usePdfPage(pdfDocument, pageNumber, rotation);
   const [state, setState] = useState<PageRenderState>({
     status: 'idle',
     error: null,
@@ -94,7 +111,20 @@ export function PageCanvas({
       )}
       <canvas ref={canvasRef} className="block shadow bg-white" aria-label={`Page ${pageNumber}`} />
       {state.status === 'done' && (
-        <PageTextLayer pdfDocument={pdfDocument} pageNumber={pageNumber} zoom={zoom} />
+        <>
+          <PageTextLayer pdfDocument={pdfDocument} pageNumber={pageNumber} zoom={zoom} />
+          <AnnotationLayer
+            annotations={annotations ?? []}
+            pageNumber={pageNumber}
+            zoom={zoom}
+            pageDims={state.dims}
+            selectedIds={selectedIds ?? new Set()}
+            activeTool={activeTool ?? 'select'}
+            onAnnotationClick={onAnnotationClick}
+            onAnnotationDoubleClick={onAnnotationDoubleClick}
+            onPageClick={onPageClick}
+          />
+        </>
       )}
     </div>
   );

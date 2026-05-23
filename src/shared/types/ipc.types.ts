@@ -55,6 +55,20 @@ export const SystemOpenExternalPayloadSchema = z.object({
   url: z.string().url(),
 });
 
+export const PdfCheckEncryptedPayloadSchema = z.object({
+  filePath: z.string().min(1),
+});
+
+export const PdfPasswordPayloadSchema = z.object({
+  filePath: z.string().min(1),
+  password: z.string().min(1),
+});
+
+export const ExportSaveTextPayloadSchema = z.object({
+  defaultPath: z.string(),
+  text: z.string(),
+});
+
 // ── Derived Types ──────────────────────────────────────────────
 
 export type OpenDialogOptions = z.infer<typeof OpenDialogOptionsSchema>;
@@ -100,4 +114,22 @@ export interface RecentDocumentResult {
   pageCount: number;
   pinned: number;
   lastOpened: string;
+}
+
+export interface PdfCheckEncryptedResult {
+  success: boolean;
+  isEncrypted?: boolean;
+  error?: string;
+}
+
+export interface PdfPasswordResult {
+  success: boolean;
+  data?: ArrayBuffer;
+  error?: string;
+}
+
+export interface ExportSaveTextResult {
+  success: boolean;
+  filePath?: string;
+  error?: string;
 }
