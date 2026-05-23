@@ -22,13 +22,22 @@ export function formatOcrExport(
   return parts.join('');
 }
 
+export interface SaveOcrTextResult {
+  saved: boolean;
+  canceled: boolean;
+  filePath?: string;
+}
+
 export async function saveOcrText(
   text: string,
   defaultFileName: string
-): Promise<string> {
+): Promise<SaveOcrTextResult> {
   const result = await window.crosspdf.saveTextFile(defaultFileName, text);
+  if (result.canceled) {
+    return { saved: false, canceled: true };
+  }
   if (!result.success) {
     throw new Error(result.error ?? 'Failed to save text file');
   }
-  return result.filePath ?? '';
+  return { saved: true, canceled: false, filePath: result.filePath };
 }

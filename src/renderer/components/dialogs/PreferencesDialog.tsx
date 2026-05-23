@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Dialog } from '../ui/Dialog';
 import { Button } from '../ui/Button';
 import { useUIStore } from '../../stores/ui.store';
@@ -41,12 +41,47 @@ interface PreferencesDialogProps {
   onClose: () => void;
 }
 
+function validatePreference<K extends keyof PreferenceValues>(
+  key: K,
+  val: unknown
+): val is PreferenceValues[K] {
+  switch (key) {
+    case 'theme':
+      return typeof val === 'string' && ['system', 'light', 'dark'].includes(val);
+    case 'defaultZoomMode':
+      return typeof val === 'string' && ['fit-width', 'fit-page', 'actual'].includes(val);
+    case 'defaultViewMode':
+      return typeof val === 'string' && ['continuous', 'single'].includes(val);
+    case 'renderAheadPages':
+      return typeof val === 'number' && val >= 1 && val <= 10;
+    case 'maxCanvasMemoryMb':
+      return typeof val === 'number' && val >= 64 && val <= 1024;
+    case 'ocrDefaultDpi':
+      return typeof val === 'number' && val >= 150 && val <= 600;
+    case 'ocrDefaultLanguage':
+      return typeof val === 'string';
+    case 'restoreLastSession':
+      return typeof val === 'boolean';
+    case 'maxRecentDocuments':
+      return typeof val === 'number' && val >= 5 && val <= 50;
+  }
+}
+
 export function PreferencesDialog({ open, onClose }: PreferencesDialogProps) {
   const [activeTab, setActiveTab] = useState<PrefsTab>('general');
   const [values, setValues] = useState<PreferenceValues>({ ...DEFAULTS });
   const [loaded, setLoaded] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
 
   const setTheme = useUIStore((s) => s.setTheme);
+  const mountedRef = useRef(true);
+
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+    };
+  }, []);
 
   // Load current preferences from DB on open
   useEffect(() => {
@@ -59,14 +94,15 @@ export function PreferencesDialog({ open, onClose }: PreferencesDialogProps) {
       for (const key of keys) {
         try {
           const val = await window.crosspdf.getPreference(key);
-          if (val !== null && val !== undefined) {
-            prefs[key] = val as never;
+          if (val !== null && val !== undefined && validatePreference(key, val)) {
+            (prefs as Record<string, unknown>)[key] = val;
           }
         } catch {
           // Use default
         }
       }
 
+      if (!mountedRef.current) return;
       setValues({ ...DEFAULTS, ...prefs });
       setLoaded(true);
     }
@@ -75,14 +111,21 @@ export function PreferencesDialog({ open, onClose }: PreferencesDialogProps) {
   }, [open]);
 
   const handleSave = useCallback(async () => {
+    setSaveError(null);
     const keys = Object.keys(values) as (keyof PreferenceValues)[];
+    let failed = false;
 
     for (const key of keys) {
       try {
         await window.crosspdf.setPreference(key, values[key]);
       } catch {
-        // Best effort
+        failed = true;
       }
+    }
+
+    if (failed) {
+      setSaveError('Some preferences could not be saved. Please try again.');
+      return;
     }
 
     // Apply theme immediately
@@ -122,6 +165,11 @@ export function PreferencesDialog({ open, onClose }: PreferencesDialogProps) {
         </div>
       }
     >
+      {saveError && (
+        <div className="mb-3 p-2 rounded bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-400 text-sm">
+          {saveError}
+        </div>
+      )}
       <div className="flex gap-4">
         {/* Tabs */}
         <div className="w-28 shrink-0">
