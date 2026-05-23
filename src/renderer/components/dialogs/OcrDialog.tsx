@@ -274,10 +274,12 @@ function parseRange(input: string, maxPage: number): number[] {
   for (const part of parts) {
     const rangeMatch = part.match(/^(\d+)\s*-\s*(\d+)$/);
     if (rangeMatch) {
-      let start = Math.max(1, parseInt(rangeMatch[1], 10));
-      let end = Math.min(parseInt(rangeMatch[2], 10), maxPage);
-      // Normalize reversed ranges (e.g. "5-3" → 3-5)
+      let start = parseInt(rangeMatch[1], 10);
+      let end = parseInt(rangeMatch[2], 10);
+      // Normalize reversed ranges (e.g. "5-3" → 3-5) before clamping
       if (start > end) [start, end] = [end, start];
+      start = Math.max(1, start);
+      end = Math.min(end, maxPage);
       for (let i = start; i <= end; i++) pages.add(i);
     } else {
       const num = parseInt(part, 10);
