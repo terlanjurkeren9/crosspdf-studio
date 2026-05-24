@@ -10,6 +10,12 @@ files:
   - dist/**/*
   - package.json
 
+asar: true
+
+extraResources:
+  - from: node_modules/sql.js/dist/sql-wasm.wasm
+    to: sql-wasm.wasm
+
 mac:
   category: public.app-category.productivity
   target:
@@ -17,12 +23,32 @@ mac:
       arch:
         - arm64
         - x64
+    - target: zip
+      arch:
+        - arm64
+        - x64
+  hardenedRuntime: true
+  entitlements: resources/entitlements.mac.plist
+  entitlementsInherit: resources/entitlements.mac.plist
 
 win:
   target:
     - target: nsis
       arch:
         - x64
+
+nsis:
+  oneClick: false
+  perMachine: false
+  allowToChangeInstallationDirectory: true
+  deleteAppDataOnUninstall: false
+
+fileAssociations:
+  - ext: pdf
+    name: PDF Document
+    description: Portable Document Format
+    role: Viewer
+    mimeType: application/pdf
 
 publish:
   provider: github

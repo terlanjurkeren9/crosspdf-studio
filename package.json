@@ -3,6 +3,7 @@
   "private": true,
   "version": "0.1.0",
   "description": "Professional cross-platform PDF editor",
+  "author": "CrossPDF Team",
   "main": "dist/main/index.cjs",
   "scripts": {
     "dev": "vite",
@@ -13,9 +14,12 @@
     "test": "vitest run",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "package:mac": "npm run build && electron-builder --mac",
-    "package:win": "npm run build && electron-builder --win",
-    "package:all": "npm run build && electron-builder --mac --win",
+    "package:mac": "pnpm build && electron-builder --mac",
+    "package:mac:unsigned": "CSC_IDENTITY_AUTO_DISCOVERY=false pnpm build && electron-builder --mac",
+    "package:mac:dev": "CSC_IDENTITY_AUTO_DISCOVERY=false pnpm build && electron-builder --mac --config.extraMetadata.dev=true",
+    "package:win": "pnpm build && electron-builder --win",
+    "package:all": "pnpm build && electron-builder --mac --win",
+    "package:dir": "pnpm build && electron-builder --dir",
     "postinstall": "electron-builder install-app-deps",
     "prepare": "husky"
   },

@@ -8,7 +8,7 @@ const isDev = !app.isPackaged;
 
 const PRELOAD_PATH = path.join(__dirname, '../preload/index.js');
 const RENDERER_DEV_URL = 'http://localhost:5173';
-const RENDERER_PROD_PATH = path.join(__dirname, '../renderer/index.html');
+const RENDERER_PROD_PATH = path.join(__dirname, '../index.html');
 
 let mainWindow: BrowserWindow | null = null;
 

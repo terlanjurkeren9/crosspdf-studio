@@ -1,3 +1,4 @@
+import { app } from 'electron';
 import initSqlJs, { type Database, type SqlJsStatic } from 'sql.js';
 import fs from 'node:fs/promises';
 import path from 'node:path';
@@ -8,11 +9,16 @@ import { runMigrations } from './migrations/001_initial';
 let SQL: SqlJsStatic | null = null;
 let db: Database | null = null;
 
+function resolveWasmPath(file: string): string {
+  if (app.isPackaged) {
+    return path.join(process.resourcesPath, file);
+  }
+  return path.join(__dirname, '../../node_modules/sql.js/dist/', file);
+}
+
 export async function getDatabase(): Promise<Database> {
   if (!SQL) {
-    SQL = await initSqlJs({
-      locateFile: (file: string) => path.join(__dirname, '../../node_modules/sql.js/dist/', file),
-    });
+    SQL = await initSqlJs({ locateFile: resolveWasmPath });
   }
 
   if (!db) {
