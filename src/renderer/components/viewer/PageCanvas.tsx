@@ -4,8 +4,11 @@ import type { PageRenderState } from '../../hooks/usePdfPage';
 import { usePdfPage } from '../../hooks/usePdfPage';
 import { PageTextLayer } from './PageTextLayer';
 import { AnnotationLayer } from './AnnotationLayer';
+import { RedactionDrawLayer } from './RedactionDrawLayer';
+import { StampInteractionLayer } from './StampInteractionLayer';
 import { Spinner } from '../ui/Spinner';
-import type { Annotation } from '../../types/annotation.types';
+import type { Annotation, StampAnnotation } from '../../types/annotation.types';
+import { isStamp } from '../../types/annotation.types';
 
 interface PageCanvasProps {
   pdfDocument: PDFDocumentProxy;
@@ -19,9 +22,23 @@ interface PageCanvasProps {
   annotations?: Annotation[];
   selectedIds?: Set<string>;
   activeTool?: string;
-  onAnnotationClick?: (id: string, e: React.MouseEvent) => void;
+  onAnnotationClick?: (id: string) => void;
   onAnnotationDoubleClick?: (id: string) => void;
   onPageClick?: (e: React.MouseEvent) => void;
+  // Redaction
+  onRedactionDrawn?: (
+    pageNumber: number,
+    rect: { x: number; y: number; width: number; height: number }
+  ) => void;
+  // Stamp interaction
+  onStampMoved?: (
+    id: string,
+    rect: { x: number; y: number; width: number; height: number }
+  ) => void;
+  onStampResized?: (
+    id: string,
+    rect: { x: number; y: number; width: number; height: number }
+  ) => void;
 }
 
 export function PageCanvas({
@@ -38,6 +55,9 @@ export function PageCanvas({
   onAnnotationClick,
   onAnnotationDoubleClick,
   onPageClick,
+  onRedactionDrawn,
+  onStampMoved,
+  onStampResized,
 }: PageCanvasProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const { render, cancel } = usePdfPage(pdfDocument, pageNumber, rotation);
@@ -124,6 +144,27 @@ export function PageCanvas({
             onAnnotationDoubleClick={onAnnotationDoubleClick}
             onPageClick={onPageClick}
           />
+          {onRedactionDrawn && (
+            <RedactionDrawLayer
+              pageNumber={pageNumber}
+              zoom={zoom}
+              active={(activeTool ?? 'select') === 'redaction'}
+              onRedactionDrawn={onRedactionDrawn}
+            />
+          )}
+          {annotations && onStampMoved && onStampResized && (
+            <StampInteractionLayer
+              zoom={zoom}
+              stamps={annotations
+                .filter((a): a is StampAnnotation => isStamp(a))
+                .filter((s) => s.pageNumber === pageNumber)}
+              selectedIds={selectedIds ?? new Set()}
+              activeTool={activeTool ?? 'select'}
+              onAnnotationClick={onAnnotationClick}
+              onStampMoved={onStampMoved}
+              onStampResized={onStampResized}
+            />
+          )}
         </>
       )}
     </div>

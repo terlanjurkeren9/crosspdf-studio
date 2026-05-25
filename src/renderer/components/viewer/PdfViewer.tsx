@@ -3,7 +3,7 @@ import type { PDFDocumentProxy, RenderTask } from 'pdfjs-dist';
 import { usePdfDocument } from '../../hooks/usePdfDocument';
 import { useResizeObserver } from '../../hooks/useResizeObserver';
 import { useDocumentStore } from '../../stores/document.store';
-import { useAnnotationStore } from '../../stores/annotation.store';
+import { useAnnotationStore, createAnnotation } from '../../stores/annotation.store';
 import { useUIStore } from '../../stores/ui.store';
 import { useAnnotationInteraction } from '../../hooks/useAnnotationInteraction';
 import type { TabState } from '../../stores/document.store';
@@ -18,7 +18,17 @@ import { clampZoom, computeFitZoom, ZOOM_FACTOR } from '../../lib/zoom';
 import type { FitMode, ViewMode, PageDims } from '../../lib/zoom';
 import { loadAnnotationDraft, saveAnnotationDraft } from '../../services/annotation-persistence';
 import { AnnotationEditor } from './AnnotationEditor';
-import type { Annotation } from '../../types/annotation.types';
+import type {
+  Annotation,
+  RedactionAnnotation,
+  StampAnnotation,
+} from '../../types/annotation.types';
+import { isRedaction, isStamp } from '../../types/annotation.types';
+import { RedactionDrawLayer } from './RedactionDrawLayer';
+import { StampInteractionLayer } from './StampInteractionLayer';
+import { applyStamps } from '../../services/pdf-ops.service';
+import { screenPointToPdf } from '../../lib/pdf-coordinates';
+import { normalizeImageToSafeDataUrl } from '../../lib/image-normalize';
 
 const EMPTY_ANNOTATIONS: Annotation[] = [];
 
@@ -612,9 +622,188 @@ export function PdfViewer({ tab, onOpenAnother, onPdfDocumentLoaded, viewerRef }
     });
   }, [tab.filePath, tab.fileName]);
 
+  const handlePdfToImages = useCallback(() => {
+    useUIStore.getState().openDialog('pdf-to-images', {
+      filePath: tab.filePath,
+      fileName: tab.fileName,
+      numPages,
+    });
+  }, [tab.filePath, tab.fileName, numPages]);
+
+  const handleImagesToPdf = useCallback(() => {
+    useUIStore.getState().openDialog('images-to-pdf');
+  }, []);
+
   const handlePreferences = useCallback(() => {
     useUIStore.getState().openDialog('preferences');
   }, []);
+
+  // ── Stamp: placement handler ────────────────────────────────
+
+  const handleStampClick = useCallback(
+    async (pageNumber: number, e: React.MouseEvent) => {
+      const target = e.currentTarget as HTMLElement;
+      const containerRect = target.getBoundingClientRect();
+      const pdfPoint = screenPointToPdf(e.clientX, e.clientY, containerRect, effectiveZoom);
+
+      let imagePath: string;
+      try {
+        const result = await window.crosspdf.openFileDialog({
+          title: 'Select Image',
+          filters: [{ name: 'Images', extensions: ['png', 'jpg', 'jpeg'] }],
+        });
+        if (result.canceled || result.filePaths.length === 0) return;
+        imagePath = result.filePaths[0];
+      } catch {
+        return;
+      }
+
+      let imageBytes: ArrayBuffer;
+      try {
+        const readResult = await window.crosspdf.readFile(imagePath);
+        if (!readResult.success || !readResult.data) return;
+        imageBytes = readResult.data;
+      } catch {
+        return;
+      }
+
+      const ext = imagePath.split('.').pop()?.toLowerCase() ?? '';
+      const mimeType =
+        ext === 'jpg' || ext === 'jpeg' ? 'image/jpeg' : ext === 'png' ? 'image/png' : null;
+
+      if (!mimeType) {
+        alert('Unsupported image format. Only PNG and JPEG images are supported.');
+        return;
+      }
+
+      let dataUrl: string;
+      let naturalW: number;
+      let naturalH: number;
+      try {
+        const normalized = await normalizeImageToSafeDataUrl(imageBytes, mimeType);
+        dataUrl = normalized.dataUrl;
+        naturalW = normalized.width;
+        naturalH = normalized.height;
+      } catch {
+        alert('Failed to process the selected image. Try a different image file.');
+        return;
+      }
+
+      const maxDim = 200; // PDF points — initial placement size
+      const scale = Math.min(1, maxDim / Math.max(naturalW, naturalH));
+      const imgW = naturalW * scale;
+      const imgH = naturalH * scale;
+
+      const ann = createAnnotation('stamp', pageNumber, {
+        rect: { x: pdfPoint.x, y: pdfPoint.y, width: imgW, height: imgH },
+        imageDataUrl: dataUrl,
+        imageWidth: naturalW,
+        imageHeight: naturalH,
+      });
+      useAnnotationStore.getState().addAnnotation(tab.id, ann);
+    },
+    [effectiveZoom, tab.id]
+  );
+
+  // ── Stamp: export handler ────────────────────────────────────
+
+  const stamps = useMemo(() => {
+    return annotationsForTab.filter((a): a is StampAnnotation => isStamp(a));
+  }, [annotationsForTab]);
+
+  const hasStamps = stamps.length > 0;
+
+  const handleExportWithImages = useCallback(async () => {
+    if (stamps.length === 0) return;
+
+    const saveResult = await window.crosspdf.saveFileDialog({
+      defaultPath: tab.fileName.replace('.pdf', '-with-images.pdf'),
+      filters: [{ name: 'PDF', extensions: ['pdf'] }],
+    });
+    if (saveResult.canceled || !saveResult.filePath) return;
+
+    try {
+      const readResult = await window.crosspdf.readFile(tab.filePath);
+      if (!readResult.success || !readResult.data) {
+        alert(`Failed to read source PDF: ${readResult.error ?? 'unknown error'}`);
+        return;
+      }
+      const freshPdfData = readResult.data;
+
+      const stampInputs = stamps.map((s) => {
+        const comma = s.imageDataUrl.indexOf(',');
+        const base64 = s.imageDataUrl.slice(comma + 1);
+        const mimeMatch = s.imageDataUrl.match(/^data:(image\/[^;]+);/);
+        const mimeType = mimeMatch ? mimeMatch[1] : 'image/png';
+        const binary = atob(base64);
+        const imageBytes = new ArrayBuffer(binary.length);
+        const view = new Uint8Array(imageBytes);
+        for (let i = 0; i < binary.length; i++) {
+          view[i] = binary.charCodeAt(i);
+        }
+        return {
+          pageNumber: s.pageNumber,
+          rect: s.rect,
+          imageBytes,
+          mimeType,
+          opacity: s.opacity,
+        };
+      });
+
+      const result = await applyStamps(freshPdfData, stampInputs);
+
+      // Create a fresh owned copy — never reference a potentially detached buffer
+      const freshCopy = new Uint8Array(result.length);
+      freshCopy.set(result);
+      const output = freshCopy.buffer;
+
+      const writeResult = await window.crosspdf.writeFile(saveResult.filePath, output);
+      if (!writeResult.success) {
+        alert(`Failed to export PDF with images: ${writeResult.error ?? 'unknown write error'}`);
+      }
+    } catch (err) {
+      alert(
+        'Failed to export PDF with images: ' + (err instanceof Error ? err.message : String(err))
+      );
+    }
+  }, [stamps, tab.fileName, tab.filePath]);
+
+  // ── Redaction: draw handler ──────────────────────────────────
+
+  const handleRedactionDrawn = useCallback(
+    (pageNumber: number, rect: { x: number; y: number; width: number; height: number }) => {
+      const ann = createAnnotation('redaction', pageNumber, { rect });
+      useAnnotationStore.getState().addAnnotation(tab.id, ann);
+    },
+    [tab.id]
+  );
+
+  // ── Redaction: apply flow ────────────────────────────────────
+
+  const redactions = useMemo(() => {
+    return annotationsForTab.filter((a): a is RedactionAnnotation => isRedaction(a));
+  }, [annotationsForTab]);
+
+  const redactedPageNumbers = useMemo(() => {
+    const pages = new Set<number>();
+    for (const r of redactions) {
+      pages.add(r.pageNumber);
+    }
+    return Array.from(pages).sort((a, b) => a - b);
+  }, [redactions]);
+
+  const hasRedactions = redactions.length > 0;
+
+  const handleRedactionApply = useCallback(() => {
+    if (!hasRedactions) return;
+    useUIStore.getState().openDialog('redaction', {
+      totalRedactions: redactions.length,
+      affectedPages: redactedPageNumbers,
+      filePath: tab.filePath,
+      fileName: tab.fileName,
+      tabId: tab.id,
+    });
+  }, [hasRedactions, redactions.length, redactedPageNumbers, tab.filePath, tab.fileName, tab.id]);
 
   // ── Keyboard shortcuts ───────────────────────────────────────
 
@@ -772,6 +961,12 @@ export function PdfViewer({ tab, onOpenAnother, onPdfDocumentLoaded, viewerRef }
         onOcr={handleOcr}
         onForms={handleForms}
         onPassword={handlePassword}
+        onRedactionApply={handleRedactionApply}
+        hasRedactions={hasRedactions}
+        onExportWithImages={handleExportWithImages}
+        hasStamps={hasStamps}
+        onPdfToImages={handlePdfToImages}
+        onImagesToPdf={handleImagesToPdf}
         onPreferences={handlePreferences}
       />
 
@@ -873,7 +1068,34 @@ export function PdfViewer({ tab, onOpenAnother, onPdfDocumentLoaded, viewerRef }
                         activeTool={activeTool}
                         onAnnotationClick={(id) => selectAnnotation(id)}
                         onAnnotationDoubleClick={(id) => handleAnnotationDoubleClick(id)}
-                        onPageClick={(e) => handlePageClick(currentPage, e)}
+                        onPageClick={(e) => {
+                          if (activeTool === 'stamp') {
+                            handleStampClick(currentPage, e);
+                          } else {
+                            handlePageClick(currentPage, e);
+                          }
+                        }}
+                      />
+                      <RedactionDrawLayer
+                        pageNumber={currentPage}
+                        zoom={effectiveZoom}
+                        active={activeTool === 'redaction'}
+                        onRedactionDrawn={handleRedactionDrawn}
+                      />
+                      <StampInteractionLayer
+                        zoom={effectiveZoom}
+                        stamps={annotationsForTab
+                          .filter((a): a is StampAnnotation => isStamp(a))
+                          .filter((s) => s.pageNumber === currentPage)}
+                        selectedIds={selectedIds}
+                        activeTool={activeTool}
+                        onAnnotationClick={(id) => selectAnnotation(id)}
+                        onStampMoved={(id, rect) =>
+                          updateAnnotation(tab.id, id, { rect } as Partial<Annotation>)
+                        }
+                        onStampResized={(id, rect) =>
+                          updateAnnotation(tab.id, id, { rect } as Partial<Annotation>)
+                        }
                       />
                     </>
                   )}
@@ -907,8 +1129,21 @@ export function PdfViewer({ tab, onOpenAnother, onPdfDocumentLoaded, viewerRef }
                   ?.getAttribute('data-page-number') ?? '0',
                 10
               );
-              if (pageNum) handlePageClick(pageNum, e);
+              if (pageNum) {
+                if (activeTool === 'stamp') {
+                  handleStampClick(pageNum, e);
+                } else {
+                  handlePageClick(pageNum, e);
+                }
+              }
             }}
+            onRedactionDrawn={handleRedactionDrawn}
+            onStampMoved={(id, rect) =>
+              updateAnnotation(tab.id, id, { rect } as Partial<Annotation>)
+            }
+            onStampResized={(id, rect) =>
+              updateAnnotation(tab.id, id, { rect } as Partial<Annotation>)
+            }
           />
         )}
       </div>

@@ -15,6 +15,14 @@ asar: true
 extraResources:
   - from: node_modules/sql.js/dist/sql-wasm.wasm
     to: sql-wasm.wasm
+  - from: resources/darwin-arm64/qpdf
+    to: darwin-arm64/qpdf
+  - from: resources/darwin-arm64/libqpdf.30.dylib
+    to: darwin-arm64/libqpdf.30.dylib
+  - from: resources/darwin-arm64/libjpeg.8.dylib
+    to: darwin-arm64/libjpeg.8.dylib
+  - from: resources/darwin-arm64/libcrypto.3.dylib
+    to: darwin-arm64/libcrypto.3.dylib
 
 mac:
   category: public.app-category.productivity

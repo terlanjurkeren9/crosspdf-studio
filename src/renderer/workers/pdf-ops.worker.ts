@@ -1,4 +1,13 @@
 import { PDFDocument, degrees } from 'pdf-lib';
+import { applyRedactionsToPdf } from '../lib/redaction-apply';
+
+interface StampInput {
+  pageNumber: number;
+  rect: { x: number; y: number; width: number; height: number };
+  imageBytes: ArrayBuffer;
+  mimeType: string;
+  opacity: number;
+}
 
 type OpsMessage =
   | { id: string; type: 'merge'; sources: ArrayBuffer[] }
@@ -9,7 +18,15 @@ type OpsMessage =
   | { id: string; type: 'rotate'; source: ArrayBuffer; rotations: [number, number][] }
   | { id: string; type: 'getFormFields'; source: ArrayBuffer }
   | { id: string; type: 'fillFormFields'; source: ArrayBuffer; fieldValues: Record<string, string> }
-  | { id: string; type: 'flattenForm'; source: ArrayBuffer };
+  | { id: string; type: 'flattenForm'; source: ArrayBuffer }
+  | {
+      id: string;
+      type: 'apply-redactions';
+      source: ArrayBuffer;
+      pngs: ArrayBuffer[];
+      redactedPageNumbers: number[];
+    }
+  | { id: string; type: 'embed-stamps'; source: ArrayBuffer; stamps: StampInput[] };
 
 type OpsResponse =
   | { id: string; type: 'success'; data: Uint8Array }
@@ -275,6 +292,44 @@ async function handleFillFormFields(
   return doc.save({ useObjectStreams: true });
 }
 
+async function handleApplyRedactions(
+  source: ArrayBuffer,
+  pngs: ArrayBuffer[],
+  redactedPageNumbers: number[]
+): Promise<Uint8Array> {
+  return applyRedactionsToPdf(source, pngs, redactedPageNumbers);
+}
+
+async function handleEmbedStamps(source: ArrayBuffer, stamps: StampInput[]): Promise<Uint8Array> {
+  const doc = await PDFDocument.load(source, { ignoreEncryption: true });
+
+  for (const stamp of stamps) {
+    const page = doc.getPage(stamp.pageNumber - 1);
+
+    let image;
+    if (stamp.mimeType === 'image/png') {
+      image = await doc.embedPng(stamp.imageBytes);
+    } else if (stamp.mimeType === 'image/jpeg') {
+      image = await doc.embedJpg(stamp.imageBytes);
+    } else {
+      // For unsupported formats, skip
+      continue;
+    }
+
+    page.drawImage(image, {
+      x: stamp.rect.x,
+      y: stamp.rect.y,
+      width: stamp.rect.width,
+      height: stamp.rect.height,
+      opacity: stamp.opacity,
+    });
+  }
+
+  doc.setProducer('CrossPDF Studio');
+  doc.setCreator('CrossPDF Studio');
+  return doc.save({ useObjectStreams: true });
+}
+
 async function handleFlattenForm(source: ArrayBuffer): Promise<Uint8Array> {
   const doc = await PDFDocument.load(source, { ignoreEncryption: true });
   const form = doc.getForm();
@@ -336,6 +391,16 @@ self.onmessage = async (event: MessageEvent<OpsMessage>) => {
       }
       case 'flattenForm': {
         const data = await handleFlattenForm(msg.source);
+        self.postMessage({ id: msg.id, type: 'success', data } satisfies OpsResponse);
+        break;
+      }
+      case 'apply-redactions': {
+        const data = await handleApplyRedactions(msg.source, msg.pngs, msg.redactedPageNumbers);
+        self.postMessage({ id: msg.id, type: 'success', data } satisfies OpsResponse);
+        break;
+      }
+      case 'embed-stamps': {
+        const data = await handleEmbedStamps(msg.source, msg.stamps);
         self.postMessage({ id: msg.id, type: 'success', data } satisfies OpsResponse);
         break;
       }

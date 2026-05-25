@@ -19,9 +19,22 @@ interface PageListProps {
   annotations?: Annotation[];
   selectedIds?: Set<string>;
   activeTool?: string;
-  onAnnotationClick?: (id: string, e: React.MouseEvent) => void;
+  onAnnotationClick?: (id: string) => void;
   onAnnotationDoubleClick?: (id: string) => void;
   onPageClick?: (e: React.MouseEvent) => void;
+  onRedactionDrawn?: (
+    pageNumber: number,
+    rect: { x: number; y: number; width: number; height: number }
+  ) => void;
+  // Stamp interaction
+  onStampMoved?: (
+    id: string,
+    rect: { x: number; y: number; width: number; height: number }
+  ) => void;
+  onStampResized?: (
+    id: string,
+    rect: { x: number; y: number; width: number; height: number }
+  ) => void;
 }
 
 export function PageList({
@@ -41,6 +54,9 @@ export function PageList({
   onAnnotationClick,
   onAnnotationDoubleClick,
   onPageClick,
+  onRedactionDrawn,
+  onStampMoved,
+  onStampResized,
 }: PageListProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const observerRef = useRef<IntersectionObserver | null>(null);
@@ -194,6 +210,9 @@ export function PageList({
                   onAnnotationClick={onAnnotationClick}
                   onAnnotationDoubleClick={onAnnotationDoubleClick}
                   onPageClick={onPageClick}
+                  onRedactionDrawn={onRedactionDrawn}
+                  onStampMoved={onStampMoved}
+                  onStampResized={onStampResized}
                 />
               ) : (
                 <div

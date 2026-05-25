@@ -157,6 +157,29 @@ export function createAnnotation(
       } as unknown as Annotation;
       return ann;
     }
+    case 'redaction': {
+      const ann: Annotation = {
+        ...base,
+        type: 'redaction',
+        color: '#000000',
+        opacity: 0.5,
+        ...overrides,
+      } as unknown as Annotation;
+      return ann;
+    }
+    case 'stamp': {
+      const ann: Annotation = {
+        ...base,
+        type: 'stamp',
+        color: '#000000',
+        opacity: 1,
+        imageDataUrl: '',
+        imageWidth: 0,
+        imageHeight: 0,
+        ...overrides,
+      } as unknown as Annotation;
+      return ann;
+    }
   }
 }
 
@@ -356,13 +379,19 @@ export const useAnnotationStore = create<AnnotationState>((set, get) => ({
   },
 
   setAnnotationsForTab: (tabId, annotations) => {
-    set((s) => ({
-      activeTool: s.activeTool,
-      annotationsByTab: { ...s.annotationsByTab, [tabId]: annotations } as Record<string, Annotation[]>,
-      undoStacksByTab: { ...s.undoStacksByTab, [tabId]: [] },
-      redoStacksByTab: { ...s.redoStacksByTab, [tabId]: [] },
-      selectedIds: s.selectedIds,
-    } as AnnotationState));
+    set(
+      (s) =>
+        ({
+          activeTool: s.activeTool,
+          annotationsByTab: { ...s.annotationsByTab, [tabId]: annotations } as Record<
+            string,
+            Annotation[]
+          >,
+          undoStacksByTab: { ...s.undoStacksByTab, [tabId]: [] },
+          redoStacksByTab: { ...s.redoStacksByTab, [tabId]: [] },
+          selectedIds: s.selectedIds,
+        }) as AnnotationState
+    );
   },
 
   clearTab: (tabId) => {

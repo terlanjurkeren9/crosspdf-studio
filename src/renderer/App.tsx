@@ -14,9 +14,17 @@ import { FormsDialog } from './components/dialogs/FormsDialog';
 import { PasswordDialog } from './components/dialogs/PasswordDialog';
 import { PasswordProtectionDialog } from './components/dialogs/PasswordProtectionDialog';
 import { PreferencesDialog } from './components/dialogs/PreferencesDialog';
+import { RedactionDialog } from './components/dialogs/RedactionDialog';
+import { PdfToImagesDialog } from './components/dialogs/PdfToImagesDialog';
+import { ImagesToPdfDialog } from './components/dialogs/ImagesToPdfDialog';
 import { deletePages } from './services/pdf-ops.service';
+import { renderRedactedPages } from './services/redaction.service';
+import { applyRedactions } from './services/pdf-ops.service';
+import type { RedactionAnnotation } from './types/annotation.types';
+import { isRedaction } from './types/annotation.types';
 import { useUIStore } from './stores/ui.store';
 import { useDocumentStore } from './stores/document.store';
+import { useAnnotationStore } from './stores/annotation.store';
 
 export default function App() {
   const theme = useUIStore((s) => s.theme);
@@ -92,6 +100,8 @@ export default function App() {
   const handleOpenFilePath = useCallback(
     async (filePath: string) => {
       try {
+        const name = filePath.split(/[/\\]/).pop() ?? filePath;
+
         // Verify file exists via preload read
         const result = await window.crosspdf.readFile(filePath);
         if (!result.success) {
@@ -99,7 +109,24 @@ export default function App() {
           return;
         }
 
-        const name = filePath.split(/[/\\]/).pop() ?? filePath;
+        // Check if file is password-protected
+        try {
+          const checkResult = await window.crosspdf.checkEncrypted(filePath);
+          if (checkResult.success && checkResult.isEncrypted) {
+            useUIStore.getState().openDialog('password', {
+              filePath,
+              fileName: name,
+            });
+            // Update recent timestamp after showing dialog (best-effort)
+            window.crosspdf.upsertRecentDocument(filePath, name).catch(() => {
+              // Ignore
+            });
+            return;
+          }
+        } catch {
+          // If check fails, try normal open anyway
+        }
+
         openTab(filePath, name);
 
         // Update recent document timestamp
@@ -208,6 +235,87 @@ export default function App() {
     }
   }, [pageOpsDialogProps, activeTab, closePageOpsDialog, handleOpenFilePath]);
 
+  // ── Redaction apply handler ─────────────────────────────────
+
+  const handleRedactionConfirm = useCallback(async () => {
+    const props = dialogProps as {
+      totalRedactions?: number;
+      affectedPages?: number[];
+      filePath?: string;
+      fileName?: string;
+      tabId?: string;
+    };
+    const filePath = props?.filePath ?? activeTab?.filePath;
+    const fileName = props?.fileName ?? activeTab?.fileName ?? 'document';
+    const tabId = props?.tabId ?? activeTab?.id;
+
+    if (!filePath || !tabId) return;
+
+    closeDialog();
+
+    try {
+      const allAnnotations = useAnnotationStore.getState().annotationsByTab[tabId] ?? [];
+      const redactions = allAnnotations.filter((a): a is RedactionAnnotation => isRedaction(a));
+
+      if (redactions.length === 0) {
+        alert('No redaction marks to apply.');
+        return;
+      }
+
+      // Build per-page redaction map
+      const redactionsByPage = new Map<number, RedactionAnnotation[]>();
+      for (const r of redactions) {
+        const list = redactionsByPage.get(r.pageNumber) ?? [];
+        list.push(r);
+        redactionsByPage.set(r.pageNumber, list);
+      }
+
+      // Read source file
+      const readResult = await window.crosspdf.readFile(filePath);
+      if (!readResult.success || !readResult.data) {
+        throw new Error('Failed to read source file');
+      }
+
+      // Render redacted pages to PNGs (with burns)
+      const totalPages = activeNumPages;
+      const renderedRedactedPages = await renderRedactedPages(
+        readResult.data,
+        redactionsByPage,
+        totalPages
+      );
+
+      if (renderedRedactedPages.length === 0) {
+        throw new Error('Failed to render any redacted pages');
+      }
+
+      // Apply redactions via worker
+      const resultBytes = await applyRedactions(readResult.data, renderedRedactedPages);
+
+      // Save As dialog
+      const defaultName = fileName.replace(/\.pdf$/i, '') + '-redacted.pdf';
+      const saveResult = await window.crosspdf.saveFileDialog({
+        defaultPath: defaultName,
+        filters: [{ name: 'PDF Documents', extensions: ['pdf'] }],
+      });
+      if (saveResult.canceled || !saveResult.filePath) return;
+
+      await window.crosspdf.writeFile(saveResult.filePath, resultBytes.buffer as ArrayBuffer);
+
+      const openNow = confirm(
+        'Redactions applied successfully.\n\n' +
+          `${redactions.length} mark(s) across ${renderedRedactedPages.length} page(s) burned.\n` +
+          'Redacted pages are now image-only (text not selectable/searchable).\n\n' +
+          'Open the result?'
+      );
+      if (openNow) {
+        handleOpenFilePath(saveResult.filePath);
+      }
+    } catch (err) {
+      console.error('Redaction apply failed:', err);
+      alert('Redaction apply failed: ' + (err instanceof Error ? err.message : 'Unknown error'));
+    }
+  }, [dialogProps, activeTab, closeDialog, handleOpenFilePath, activeNumPages]);
+
   const hasOpenDocument = tabs.length > 0;
   const activeCurrentPage = activeTab?.currentPage ?? 1;
 
@@ -285,6 +393,7 @@ export default function App() {
           filePath={activeTab.filePath}
           fileName={activeTab.fileName}
           numPages={activeNumPages}
+          password={activeTab.password}
         />
       )}
 
@@ -305,6 +414,9 @@ export default function App() {
           onClose={closeDialog}
           filePath={activeTab.filePath}
           fileName={activeTab.fileName}
+          onPasswordChanged={(password) => {
+            useDocumentStore.getState().updateTabState(activeTab.id, { password });
+          }}
         />
       )}
 
@@ -324,6 +436,36 @@ export default function App() {
             openTab(filePath, fileName, password);
             closeDialog();
           }}
+        />
+      )}
+
+      {activeDialog === 'redaction' && (
+        <RedactionDialog
+          key={`redaction-${activeDialog === 'redaction'}`}
+          open={true}
+          onClose={closeDialog}
+          onConfirm={handleRedactionConfirm}
+          affectedPages={(dialogProps as { affectedPages?: number[] }).affectedPages ?? []}
+          totalRedactions={(dialogProps as { totalRedactions?: number }).totalRedactions ?? 0}
+        />
+      )}
+
+      {activeDialog === 'pdf-to-images' && activeTab && (
+        <PdfToImagesDialog
+          key={`pdf-to-images-${activeDialog === 'pdf-to-images'}`}
+          open={true}
+          onClose={closeDialog}
+          filePath={(dialogProps as { filePath?: string }).filePath ?? activeTab.filePath}
+          fileName={(dialogProps as { fileName?: string }).fileName ?? activeTab.fileName}
+          numPages={(dialogProps as { numPages?: number }).numPages ?? activeNumPages}
+        />
+      )}
+
+      {activeDialog === 'images-to-pdf' && (
+        <ImagesToPdfDialog
+          key={`images-to-pdf-${activeDialog === 'images-to-pdf'}`}
+          open={true}
+          onClose={closeDialog}
         />
       )}
 

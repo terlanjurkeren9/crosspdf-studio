@@ -3,6 +3,7 @@ import { z } from 'zod';
 // ── Zod Schemas ─────────────────────────────────────────────────
 
 export const OpenDialogOptionsSchema = z.object({
+  title: z.string().optional(),
   filters: z
     .array(
       z.object({
@@ -12,6 +13,7 @@ export const OpenDialogOptionsSchema = z.object({
     )
     .optional(),
   multiSelections: z.boolean().optional(),
+  properties: z.array(z.string()).optional(),
 });
 
 export const SaveDialogOptionsSchema = z.object({
@@ -62,6 +64,12 @@ export const PdfCheckEncryptedPayloadSchema = z.object({
 export const PdfPasswordPayloadSchema = z.object({
   filePath: z.string().min(1),
   password: z.string().min(1),
+});
+
+export const PdfEncryptPayloadSchema = z.object({
+  filePath: z.string().min(1),
+  userPassword: z.string().min(1),
+  ownerPassword: z.string().optional(),
 });
 
 export const ExportSaveTextPayloadSchema = z.object({

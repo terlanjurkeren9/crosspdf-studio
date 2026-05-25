@@ -12,11 +12,19 @@ interface OcrDialogProps {
   filePath: string;
   fileName: string;
   numPages: number;
+  password?: string;
 }
 
 type OcrStatus = 'idle' | 'running' | 'complete' | 'error';
 
-export function OcrDialog({ open, onClose, filePath, fileName, numPages }: OcrDialogProps) {
+export function OcrDialog({
+  open,
+  onClose,
+  filePath,
+  fileName,
+  numPages,
+  password,
+}: OcrDialogProps) {
   const [status, setStatus] = useState<OcrStatus>('idle');
   const [language, setLanguage] = useState('eng');
   const [dpi, setDpi] = useState(300);
@@ -62,7 +70,8 @@ export function OcrDialog({ open, onClose, filePath, fileName, numPages }: OcrDi
         (pageNum, pageIdx, total) => {
           setCurrentPage(pageNum);
           setTotalPages(total);
-        }
+        },
+        password
       );
 
       setResults(ocrResults);
@@ -71,7 +80,7 @@ export function OcrDialog({ open, onClose, filePath, fileName, numPages }: OcrDi
       setStatus('error');
       setErrorMessage(err instanceof Error ? err.message : 'OCR failed');
     }
-  }, [filePath, pageNumbers, language, dpi]);
+  }, [filePath, pageNumbers, language, dpi, password]);
 
   const handleExport = useCallback(async () => {
     if (results.length === 0) return;

@@ -1,8 +1,4 @@
-import type {
-  OcrRequest,
-  OcrPageResult,
-  OcrWorkerEvent,
-} from '../workers/ocr.worker';
+import type { OcrRequest, OcrPageResult, OcrWorkerEvent } from '../workers/ocr.worker';
 
 let workerPromise: Promise<Worker> | null = null;
 
@@ -10,10 +6,9 @@ function getOcrWorker(): Promise<Worker> {
   if (!workerPromise) {
     workerPromise = new Promise<Worker>((resolve, reject) => {
       try {
-        const worker = new Worker(
-          new URL('../workers/ocr.worker.ts', import.meta.url),
-          { type: 'module' }
-        );
+        const worker = new Worker(new URL('../workers/ocr.worker.ts', import.meta.url), {
+          type: 'module',
+        });
         resolve(worker);
       } catch (err) {
         workerPromise = null;
@@ -31,7 +26,8 @@ export function runOcr(
   pageNumbers: number[],
   language: string,
   dpi: number,
-  onProgress: (pageNumber: number, pageIndex: number, totalPages: number) => void
+  onProgress: (pageNumber: number, pageIndex: number, totalPages: number) => void,
+  password?: string
 ): Promise<OcrPageResult[]> {
   return new Promise((resolve, reject) => {
     void (async () => {
@@ -62,6 +58,7 @@ export function runOcr(
           pageNumbers,
           language,
           dpi,
+          ...(password ? { password } : {}),
         };
 
         worker.postMessage(request, [pdfBytes]);

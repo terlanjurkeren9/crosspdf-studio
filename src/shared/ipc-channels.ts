@@ -21,6 +21,7 @@ export const IPC_CHANNELS = {
   // PDF Security
   PDF_CHECK_ENCRYPTED: 'pdf:check-encrypted',
   PDF_APPLY_PASSWORD: 'pdf:apply-password',
+  PDF_ENCRYPT: 'pdf:encrypt',
   PDF_REMOVE_PASSWORD: 'pdf:remove-password',
 
   // Export

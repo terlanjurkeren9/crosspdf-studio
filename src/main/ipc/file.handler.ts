@@ -23,16 +23,18 @@ export function registerFileHandlers(): void {
     const win = BrowserWindow.getFocusedWindow();
     if (!win) return { canceled: true, filePaths: [] };
 
+    const properties = (parsed.data.properties ?? [
+      'openFile',
+      ...(parsed.data.multiSelections ? ['multiSelections' as const] : []),
+    ]) as Electron.OpenDialogOptions['properties'];
+
     return dialog.showOpenDialog(win, {
-      title: 'Open PDF Document',
+      title: parsed.data.title ?? 'Open PDF Document',
       filters: parsed.data.filters ?? [
         { name: 'PDF Documents', extensions: ['pdf'] },
         { name: 'All Files', extensions: ['*'] },
       ],
-      properties: [
-        'openFile',
-        ...(parsed.data.multiSelections ? ['multiSelections' as const] : []),
-      ],
+      properties,
     });
   });
 

@@ -37,6 +37,11 @@ export interface WindowApi {
 
   checkEncrypted(filePath: string): Promise<PdfCheckEncryptedResult>;
   applyPassword(filePath: string, password: string): Promise<PdfPasswordResult>;
+  encryptPdf(
+    filePath: string,
+    userPassword: string,
+    ownerPassword?: string
+  ): Promise<PdfPasswordResult>;
   removePassword(filePath: string, password: string): Promise<PdfPasswordResult>;
 
   saveTextFile(defaultPath: string, text: string): Promise<ExportSaveTextResult>;
@@ -85,6 +90,13 @@ contextBridge.exposeInMainWorld('crosspdf', {
 
   applyPassword: (filePath: string, password: string) =>
     ipcRenderer.invoke(IPC_CHANNELS.PDF_APPLY_PASSWORD, { filePath, password }),
+
+  encryptPdf: (filePath: string, userPassword: string, ownerPassword?: string) =>
+    ipcRenderer.invoke(IPC_CHANNELS.PDF_ENCRYPT, {
+      filePath,
+      userPassword,
+      ownerPassword,
+    }),
 
   removePassword: (filePath: string, password: string) =>
     ipcRenderer.invoke(IPC_CHANNELS.PDF_REMOVE_PASSWORD, { filePath, password }),

@@ -10,7 +10,7 @@ interface AnnotationLayerProps {
   pageDims?: PageDims | null;
   selectedIds: Set<string>;
   activeTool: string;
-  onAnnotationClick?: (id: string, e: React.MouseEvent) => void;
+  onAnnotationClick?: (id: string) => void;
   onAnnotationDoubleClick?: (id: string) => void;
   onPageClick?: (e: React.MouseEvent) => void;
   className?: string;
@@ -35,13 +35,15 @@ export function AnnotationLayer({
   const width = pageDims ? pageDims.width * zoom : 0;
   const height = pageDims ? pageDims.height * zoom : 0;
 
-  const isCreationTool = activeTool === 'sticky-note'
-    || activeTool === 'free-text'
-    || activeTool === 'freehand'
-    || activeTool === 'rectangle'
-    || activeTool === 'ellipse'
-    || activeTool === 'line'
-    || activeTool === 'arrow';
+  const isCreationTool =
+    activeTool === 'sticky-note' ||
+    activeTool === 'free-text' ||
+    activeTool === 'stamp' ||
+    activeTool === 'freehand' ||
+    activeTool === 'rectangle' ||
+    activeTool === 'ellipse' ||
+    activeTool === 'line' ||
+    activeTool === 'arrow';
 
   const handleCreationClick = useCallback(
     (e: React.PointerEvent) => {
@@ -112,7 +114,7 @@ export function AnnotationLayer({
             }}
             onPointerDown={(e) => {
               e.stopPropagation();
-              onAnnotationClick?.(a.id, e as unknown as React.MouseEvent);
+              onAnnotationClick?.(a.id);
             }}
             onDoubleClick={() => onAnnotationDoubleClick?.(a.id)}
           />
@@ -133,7 +135,11 @@ function AnnotationRenderer({
 }) {
   const pixelRect = pdfRectToPixel(annotation.rect, zoom);
 
-  if (annotation.type === 'highlight' || annotation.type === 'underline' || annotation.type === 'strikeout') {
+  if (
+    annotation.type === 'highlight' ||
+    annotation.type === 'underline' ||
+    annotation.type === 'strikeout'
+  ) {
     const quads = quadPointsToPixel(annotation.quadPoints, zoom);
     const paths: string[] = [];
 
@@ -162,19 +168,9 @@ function AnnotationRenderer({
     if (annotation.type === 'highlight') {
       return (
         <g>
-          <path
-            d={d}
-            fill={annotation.color}
-            opacity={annotation.opacity}
-          />
+          <path d={d} fill={annotation.color} opacity={annotation.opacity} />
           {selected && (
-            <path
-              d={d}
-              fill="none"
-              stroke="#3b82f6"
-              strokeWidth={1}
-              strokeDasharray="3,2"
-            />
+            <path d={d} fill="none" stroke="#3b82f6" strokeWidth={1} strokeDasharray="3,2" />
           )}
         </g>
       );
@@ -333,6 +329,75 @@ function AnnotationRenderer({
             points={arrowHead(x1, y1, x2, y2, 8 * zoom)}
             fill={annotation.color}
             opacity={annotation.opacity}
+          />
+        )}
+      </g>
+    );
+  }
+
+  if (annotation.type === 'redaction') {
+    const patternId = `redact-pattern-${annotation.id}`;
+    return (
+      <g>
+        <defs>
+          <pattern
+            id={patternId}
+            width={8}
+            height={8}
+            patternUnits="userSpaceOnUse"
+            patternTransform={`scale(${zoom})`}
+          >
+            <rect width={8} height={8} fill="rgba(0,0,0,0.7)" />
+            <line x1={0} y1={0} x2={8} y2={8} stroke="rgba(255,255,255,0.15)" strokeWidth={1} />
+            <line x1={8} y1={0} x2={0} y2={8} stroke="rgba(255,255,255,0.15)" strokeWidth={1} />
+          </pattern>
+        </defs>
+        <rect
+          x={pixelRect.x}
+          y={pixelRect.y}
+          width={pixelRect.width}
+          height={pixelRect.height}
+          fill={`url(#${patternId})`}
+          stroke={selected ? '#3b82f6' : 'rgba(0,0,0,0.4)'}
+          strokeWidth={selected ? 2 : 1}
+        />
+        <text
+          x={pixelRect.x + pixelRect.width / 2}
+          y={pixelRect.y + pixelRect.height / 2}
+          textAnchor="middle"
+          dominantBaseline="central"
+          fill="rgba(255,255,255,0.6)"
+          fontSize={Math.max(8, 10 * zoom)}
+          style={{ pointerEvents: 'none' }}
+        >
+          REDACTED
+        </text>
+      </g>
+    );
+  }
+
+  if (annotation.type === 'stamp') {
+    if (!annotation.imageDataUrl || pixelRect.width <= 0 || pixelRect.height <= 0) return null;
+    return (
+      <g>
+        <image
+          href={annotation.imageDataUrl}
+          x={pixelRect.x}
+          y={pixelRect.y}
+          width={pixelRect.width}
+          height={pixelRect.height}
+          opacity={annotation.opacity}
+        />
+        {selected && (
+          <rect
+            x={pixelRect.x}
+            y={pixelRect.y}
+            width={pixelRect.width}
+            height={pixelRect.height}
+            fill="none"
+            stroke="#3b82f6"
+            strokeWidth={1}
+            strokeDasharray="3,2"
           />
         )}
       </g>

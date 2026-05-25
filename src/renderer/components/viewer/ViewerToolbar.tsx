@@ -46,6 +46,12 @@ interface ViewerToolbarProps {
   onOcr?: () => void;
   onForms?: () => void;
   onPassword?: () => void;
+  onRedactionApply?: () => void;
+  hasRedactions?: boolean;
+  onExportWithImages?: () => void;
+  hasStamps?: boolean;
+  onPdfToImages?: () => void;
+  onImagesToPdf?: () => void;
   onPreferences?: () => void;
 }
 
@@ -54,14 +60,22 @@ const ANNOTATION_TOOLS: { tool: AnnotationTool; label: string; icon: React.React
     tool: 'select',
     label: 'Select',
     icon: (
-      <path strokeLinecap="round" strokeLinejoin="round" d="M15 15l-2 5L9 9l11 4-5 2zm0 0l5 5M7.188 2.239l.777 2.897M5.136 7.965l-2.898-.777M13.95 4.05l-2.122 2.122m-5.657 5.656l-2.12 2.122" />
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        d="M15 15l-2 5L9 9l11 4-5 2zm0 0l5 5M7.188 2.239l.777 2.897M5.136 7.965l-2.898-.777M13.95 4.05l-2.122 2.122m-5.657 5.656l-2.12 2.122"
+      />
     ),
   },
   {
     tool: 'highlight',
     label: 'Highlight',
     icon: (
-      <path strokeLinecap="round" strokeLinejoin="round" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"
+      />
     ),
   },
   {
@@ -70,7 +84,15 @@ const ANNOTATION_TOOLS: { tool: AnnotationTool; label: string; icon: React.React
     icon: (
       <g>
         <path strokeLinecap="round" strokeLinejoin="round" d="M6 3v7a6 6 0 006 6 6 6 0 006-6V3" />
-        <line x1="4" y1="21" x2="20" y2="21" stroke="currentColor" strokeWidth={2} strokeLinecap="round" />
+        <line
+          x1="4"
+          y1="21"
+          x2="20"
+          y2="21"
+          stroke="currentColor"
+          strokeWidth={2}
+          strokeLinecap="round"
+        />
       </g>
     ),
   },
@@ -80,7 +102,15 @@ const ANNOTATION_TOOLS: { tool: AnnotationTool; label: string; icon: React.React
     icon: (
       <g>
         <path strokeLinecap="round" strokeLinejoin="round" d="M6 3v7a6 6 0 006 6 6 6 0 006-6V3" />
-        <line x1="4" y1="14" x2="20" y2="14" stroke="currentColor" strokeWidth={2} strokeLinecap="round" />
+        <line
+          x1="4"
+          y1="14"
+          x2="20"
+          y2="14"
+          stroke="currentColor"
+          strokeWidth={2}
+          strokeLinecap="round"
+        />
       </g>
     ),
   },
@@ -89,7 +119,11 @@ const ANNOTATION_TOOLS: { tool: AnnotationTool; label: string; icon: React.React
     label: 'Sticky Note',
     icon: (
       <g>
-        <path strokeLinecap="round" strokeLinejoin="round" d="M16 4h2a2 2 0 012 2v14a2 2 0 01-2 2H6a2 2 0 01-2-2V6a2 2 0 012-2h2" />
+        <path
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          d="M16 4h2a2 2 0 012 2v14a2 2 0 01-2 2H6a2 2 0 01-2-2V6a2 2 0 012-2h2"
+        />
         <rect x="8" y="2" width="8" height="4" rx="1" stroke="currentColor" strokeWidth={2} />
       </g>
     ),
@@ -97,8 +131,37 @@ const ANNOTATION_TOOLS: { tool: AnnotationTool; label: string; icon: React.React
   {
     tool: 'free-text',
     label: 'Add Text',
+    icon: <path strokeLinecap="round" strokeLinejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z" />,
+  },
+  {
+    tool: 'stamp',
+    label: 'Add Image',
     icon: (
-      <path strokeLinecap="round" strokeLinejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z" />
+      <g>
+        <rect x="3" y="3" width="18" height="18" rx="2" stroke="currentColor" strokeWidth={2} />
+        <circle cx="8.5" cy="8.5" r="1.5" fill="currentColor" />
+        <path strokeLinecap="round" strokeLinejoin="round" d="M21 15l-5-5L5 21" />
+      </g>
+    ),
+  },
+  {
+    tool: 'redaction',
+    label: 'Redaction',
+    icon: (
+      <g>
+        <rect
+          x="5"
+          y="5"
+          width="14"
+          height="14"
+          rx="1"
+          stroke="currentColor"
+          strokeWidth={2}
+          fill="none"
+        />
+        <path d="M7 7h4l3 3v7l-7-7V7z" fill="currentColor" opacity={0.6} />
+        <line x1="5" y1="19" x2="19" y2="5" stroke="currentColor" strokeWidth={2} />
+      </g>
     ),
   },
 ];
@@ -139,6 +202,12 @@ export function ViewerToolbar({
   onOcr,
   onForms,
   onPassword,
+  onRedactionApply,
+  hasRedactions = false,
+  onExportWithImages,
+  hasStamps = false,
+  onPdfToImages,
+  onImagesToPdf,
   onPreferences,
 }: ViewerToolbarProps) {
   const handleZoomSlider = useCallback(
@@ -434,8 +503,18 @@ export function ViewerToolbar({
               className="p-1 rounded hover:bg-red-100 dark:hover:bg-red-900/30 text-surface-500 hover:text-red-600 dark:hover:text-red-400 disabled:opacity-30"
               title="Delete current page"
             >
-              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+              <svg
+                className="w-4 h-4"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+                strokeWidth={2}
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+                />
               </svg>
             </button>
           )}
@@ -447,9 +526,19 @@ export function ViewerToolbar({
               className="p-1 rounded hover:bg-surface-200 dark:hover:bg-surface-700 text-surface-500 hover:text-surface-900 dark:hover:text-surface-100 disabled:opacity-30"
               title="Rotate counter-clockwise"
             >
-              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <svg
+                className="w-4 h-4"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+                strokeWidth={2}
+              >
                 <path strokeLinecap="round" strokeLinejoin="round" d="M1 4v6h6" />
-                <path strokeLinecap="round" strokeLinejoin="round" d="M3.51 15a9 9 0 102.13-9.36L1 10" />
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  d="M3.51 15a9 9 0 102.13-9.36L1 10"
+                />
               </svg>
             </button>
           )}
@@ -461,9 +550,19 @@ export function ViewerToolbar({
               className="p-1 rounded hover:bg-surface-200 dark:hover:bg-surface-700 text-surface-500 hover:text-surface-900 dark:hover:text-surface-100 disabled:opacity-30"
               title="Rotate clockwise"
             >
-              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <svg
+                className="w-4 h-4"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+                strokeWidth={2}
+              >
                 <path strokeLinecap="round" strokeLinejoin="round" d="M23 4v6h-6" />
-                <path strokeLinecap="round" strokeLinejoin="round" d="M20.49 15a9 9 0 11-2.13-9.36L23 10" />
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  d="M20.49 15a9 9 0 11-2.13-9.36L23 10"
+                />
               </svg>
             </button>
           )}
@@ -481,8 +580,18 @@ export function ViewerToolbar({
               className="p-1 rounded hover:bg-surface-200 dark:hover:bg-surface-700 text-surface-500 hover:text-surface-900 dark:hover:text-surface-100"
               title="Merge PDF"
             >
-              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M8 7v8a2 2 0 002 2h6M8 7V5a2 2 0 012-2h4.586a1 1 0 01.707.293l4.414 4.414a1 1 0 01.293.707V15a2 2 0 01-2 2h-2M8 7H6a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2v-2" />
+              <svg
+                className="w-4 h-4"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+                strokeWidth={2}
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  d="M8 7v8a2 2 0 002 2h6M8 7V5a2 2 0 012-2h4.586a1 1 0 01.707.293l4.414 4.414a1 1 0 01.293.707V15a2 2 0 01-2 2h-2M8 7H6a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2v-2"
+                />
               </svg>
             </button>
           )}
@@ -493,8 +602,18 @@ export function ViewerToolbar({
               className="p-1 rounded hover:bg-surface-200 dark:hover:bg-surface-700 text-surface-500 hover:text-surface-900 dark:hover:text-surface-100"
               title="Split PDF"
             >
-              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
+              <svg
+                className="w-4 h-4"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+                strokeWidth={2}
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"
+                />
               </svg>
             </button>
           )}
@@ -505,7 +624,13 @@ export function ViewerToolbar({
               className="p-1 rounded hover:bg-surface-200 dark:hover:bg-surface-700 text-surface-500 hover:text-surface-900 dark:hover:text-surface-100"
               title="Reorder Pages"
             >
-              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <svg
+                className="w-4 h-4"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+                strokeWidth={2}
+              >
                 <path strokeLinecap="round" strokeLinejoin="round" d="M4 6h16M4 12h16M4 18h16" />
                 <path strokeLinecap="round" strokeLinejoin="round" d="M8 6v12" />
               </svg>
@@ -518,16 +643,33 @@ export function ViewerToolbar({
               className="p-1 rounded hover:bg-surface-200 dark:hover:bg-surface-700 text-surface-500 hover:text-surface-900 dark:hover:text-surface-100"
               title="Extract Pages"
             >
-              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+              <svg
+                className="w-4 h-4"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+                strokeWidth={2}
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+                />
               </svg>
             </button>
           )}
         </>
       )}
 
-      {/* Phase 4: OCR, Forms, Security, Preferences */}
-      {(onOcr || onForms || onPassword || onPreferences) && (
+      {/* Phase 4: OCR, Forms, Security, Redaction, Export Images, PDF/Images, Preferences */}
+      {(onOcr ||
+        onForms ||
+        onPassword ||
+        onRedactionApply ||
+        onExportWithImages ||
+        onPdfToImages ||
+        onImagesToPdf ||
+        onPreferences) && (
         <div className="flex items-center gap-1">
           <div className="w-px h-5 bg-surface-300 dark:bg-surface-700" />
           {onOcr && (
@@ -538,8 +680,18 @@ export function ViewerToolbar({
               className="p-1 rounded hover:bg-surface-200 dark:hover:bg-surface-700 text-surface-500 hover:text-surface-900 dark:hover:text-surface-100 disabled:opacity-30"
               title="OCR"
             >
-              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+              <svg
+                className="w-4 h-4"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+                strokeWidth={2}
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+                />
               </svg>
             </button>
           )}
@@ -551,8 +703,18 @@ export function ViewerToolbar({
               className="p-1 rounded hover:bg-surface-200 dark:hover:bg-surface-700 text-surface-500 hover:text-surface-900 dark:hover:text-surface-100 disabled:opacity-30"
               title="Forms"
             >
-              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+              <svg
+                className="w-4 h-4"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+                strokeWidth={2}
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+                />
               </svg>
             </button>
           )}
@@ -564,8 +726,85 @@ export function ViewerToolbar({
               className="p-1 rounded hover:bg-surface-200 dark:hover:bg-surface-700 text-surface-500 hover:text-surface-900 dark:hover:text-surface-100 disabled:opacity-30"
               title="Password Protection"
             >
-              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+              <svg
+                className="w-4 h-4"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+                strokeWidth={2}
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"
+                />
+              </svg>
+            </button>
+          )}
+          {onRedactionApply && hasRedactions && (
+            <button
+              type="button"
+              onClick={onRedactionApply}
+              disabled={disabled}
+              className="px-2 py-0.5 text-xs rounded bg-red-100 dark:bg-red-900/40 text-red-700 dark:text-red-300 hover:bg-red-200 dark:hover:bg-red-900/60 disabled:opacity-30 font-medium"
+              title="Apply Redactions"
+            >
+              Apply Redact
+            </button>
+          )}
+          {onExportWithImages && hasStamps && (
+            <button
+              type="button"
+              onClick={onExportWithImages}
+              disabled={disabled}
+              className="px-2 py-0.5 text-xs rounded bg-green-100 dark:bg-green-900/40 text-green-700 dark:text-green-300 hover:bg-green-200 dark:hover:bg-green-900/60 disabled:opacity-30 font-medium"
+              title="Export PDF with Images"
+            >
+              Export Images
+            </button>
+          )}
+          {onPdfToImages && (
+            <button
+              type="button"
+              onClick={onPdfToImages}
+              disabled={disabled}
+              className="p-1 rounded hover:bg-surface-200 dark:hover:bg-surface-700 text-surface-500 hover:text-surface-900 dark:hover:text-surface-100 disabled:opacity-30"
+              title="PDF to Images"
+            >
+              <svg
+                className="w-4 h-4"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+                strokeWidth={2}
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"
+                />
+              </svg>
+            </button>
+          )}
+          {onImagesToPdf && (
+            <button
+              type="button"
+              onClick={onImagesToPdf}
+              className="p-1 rounded hover:bg-surface-200 dark:hover:bg-surface-700 text-surface-500 hover:text-surface-900 dark:hover:text-surface-100"
+              title="Images to PDF"
+            >
+              <svg
+                className="w-4 h-4"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+                strokeWidth={2}
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"
+                />
               </svg>
             </button>
           )}
@@ -576,9 +815,23 @@ export function ViewerToolbar({
               className="p-1 rounded hover:bg-surface-200 dark:hover:bg-surface-700 text-surface-500 hover:text-surface-900 dark:hover:text-surface-100"
               title="Preferences"
             >
-              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.066 2.573c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.573 1.066c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.066-2.573c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
-                <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+              <svg
+                className="w-4 h-4"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+                strokeWidth={2}
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.066 2.573c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.573 1.066c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.066-2.573c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"
+                />
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
+                />
               </svg>
             </button>
           )}

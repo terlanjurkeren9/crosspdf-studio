@@ -9,6 +9,7 @@ export interface OcrRequest {
   pageNumbers: number[];
   language: string;
   dpi: number;
+  password?: string;
 }
 
 export interface OcrProgressEvent {
@@ -118,19 +119,23 @@ function imageDataToBlob(imageData: ImageData): Promise<Blob> {
 }
 
 async function processOcrRequest(request: OcrRequest): Promise<void> {
-  const { id, pdfBytes, pageNumbers, language } = request;
+  const { id, pdfBytes, pageNumbers, language, password } = request;
   let pdfDoc: pdfjsLib.PDFDocumentProxy | null = null;
   let tesseractWorker: Awaited<ReturnType<TesseractWorkerFactory>> | null = null;
 
   try {
-    // Load PDF
-    const loadingTask = pdfjsLib.getDocument({
+    // Load PDF — include password for encrypted PDFs
+    const docParams: Parameters<typeof pdfjsLib.getDocument>[0] = {
       data: pdfBytes.slice(0),
       useWorkerFetch: false,
       useSystemFonts: false,
       disableAutoFetch: true,
       disableStream: true,
-    });
+    };
+    if (password) {
+      docParams.password = password;
+    }
+    const loadingTask = pdfjsLib.getDocument(docParams);
     pdfDoc = await loadingTask.promise;
 
     if (!pdfDoc || pdfDoc.numPages <= 0) {

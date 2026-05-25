@@ -48,6 +48,12 @@ function annotationLabel(a: Annotation): string {
       return 'Line';
     case 'arrow':
       return 'Arrow';
+    case 'redaction':
+      return 'Redaction';
+    case 'stamp':
+      return 'Image';
+    default:
+      return 'Annotation';
   }
 }
 
@@ -67,11 +73,7 @@ export function CommentPanel({ tabId, onNavigateToPage }: CommentPanelProps) {
   const deselectAll = useAnnotationStore((s) => s.deselectAll);
 
   if (!tabId) {
-    return (
-      <div className="p-3 text-xs text-surface-400">
-        Open a document to view annotations
-      </div>
-    );
+    return <div className="p-3 text-xs text-surface-400">Open a document to view annotations</div>;
   }
 
   if (annotations.length === 0) {
@@ -137,9 +139,7 @@ export function CommentPanel({ tabId, onNavigateToPage }: CommentPanelProps) {
               )}
 
               <div className="flex items-center gap-2 mt-1 ml-4.5">
-                <span className="text-[10px] text-surface-400">
-                  {formatTime(a.createdAt)}
-                </span>
+                <span className="text-[10px] text-surface-400">{formatTime(a.createdAt)}</span>
                 {a.modifiedAt !== a.createdAt && (
                   <span className="text-[10px] text-surface-400">
                     edited {formatTime(a.modifiedAt)}

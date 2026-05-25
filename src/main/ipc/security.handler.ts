@@ -3,11 +3,9 @@ import { IPC_CHANNELS } from '../../shared/ipc-channels';
 import {
   PdfCheckEncryptedPayloadSchema,
   PdfPasswordPayloadSchema,
+  PdfEncryptPayloadSchema,
 } from '../../shared/types/ipc.types';
-import type {
-  PdfCheckEncryptedResult,
-  PdfPasswordResult,
-} from '../../shared/types/ipc.types';
+import type { PdfCheckEncryptedResult, PdfPasswordResult } from '../../shared/types/ipc.types';
 import {
   checkEncrypted,
   decryptWithPassword,
@@ -54,6 +52,30 @@ export function registerSecurityHandlers(): void {
   );
 
   ipcMain.handle(
+    IPC_CHANNELS.PDF_ENCRYPT,
+    async (_event, payload: unknown): Promise<PdfPasswordResult> => {
+      const parsed = PdfEncryptPayloadSchema.safeParse(payload);
+      if (!parsed.success) {
+        return { success: false, error: 'Invalid payload' };
+      }
+
+      try {
+        const data = await encryptWithPassword(
+          parsed.data.filePath,
+          parsed.data.userPassword,
+          parsed.data.ownerPassword
+        );
+        return { success: true, data };
+      } catch (err) {
+        const msg = (err as Error).message;
+        // Guard: error message must not contain raw password
+        log.error('pdf:encrypt failed', { error: msg });
+        return { success: false, error: msg };
+      }
+    }
+  );
+
+  ipcMain.handle(
     IPC_CHANNELS.PDF_REMOVE_PASSWORD,
     async (_event, payload: unknown): Promise<PdfPasswordResult> => {
       const parsed = PdfPasswordPayloadSchema.safeParse(payload);
@@ -65,8 +87,9 @@ export function registerSecurityHandlers(): void {
         const data = await removePassword(parsed.data.filePath, parsed.data.password);
         return { success: true, data };
       } catch (err) {
-        log.error('pdf:remove-password failed', { error: (err as Error).message });
-        return { success: false, error: (err as Error).message };
+        const msg = (err as Error).message;
+        log.error('pdf:remove-password failed', { error: msg });
+        return { success: false, error: msg };
       }
     }
   );
@@ -74,15 +97,27 @@ export function registerSecurityHandlers(): void {
 
 /**
  * Encrypt a PDF buffer with password protection.
- * Called from renderer via a separate flow — reads the source PDF bytes,
- * applies encryption, and returns the encrypted bytes.
- * v1: stub until QPDF is bundled.
+ * Used when the caller already has the PDF in memory.
  */
 export async function handleEncryptPdf(
   pdfData: ArrayBuffer,
   userPassword: string,
   ownerPassword?: string
 ): Promise<ArrayBuffer> {
-  // v1: throws — requires bundled QPDF
-  return encryptWithPassword('', userPassword, ownerPassword);
+  // Write to temp, encrypt, return result
+  const fs = await import('node:fs/promises');
+  const os = await import('node:os');
+  const path = await import('node:path');
+  const tmpDir = os.tmpdir();
+  const tmpInput = path.join(tmpDir, `crosspdf-encrypt-in-${Date.now()}.pdf`);
+  try {
+    await fs.writeFile(tmpInput, Buffer.from(pdfData));
+    return await encryptWithPassword(tmpInput, userPassword, ownerPassword);
+  } finally {
+    try {
+      await fs.unlink(tmpInput);
+    } catch {
+      /* ignore cleanup errors */
+    }
+  }
 }

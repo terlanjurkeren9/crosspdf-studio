@@ -8,7 +8,9 @@ export type AnnotationType =
   | 'rectangle'
   | 'ellipse'
   | 'line'
-  | 'arrow';
+  | 'arrow'
+  | 'redaction'
+  | 'stamp';
 
 export type AnnotationTool = 'select' | AnnotationType;
 
@@ -87,6 +89,17 @@ export interface ArrowAnnotation extends AnnotationBase {
   strokeWidth: number;
 }
 
+export interface RedactionAnnotation extends AnnotationBase {
+  type: 'redaction';
+}
+
+export interface StampAnnotation extends AnnotationBase {
+  type: 'stamp';
+  imageDataUrl: string;
+  imageWidth: number;
+  imageHeight: number;
+}
+
 export type Annotation =
   | HighlightAnnotation
   | UnderlineAnnotation
@@ -97,11 +110,15 @@ export type Annotation =
   | RectangleAnnotation
   | EllipseAnnotation
   | LineAnnotation
-  | ArrowAnnotation;
+  | ArrowAnnotation
+  | RedactionAnnotation
+  | StampAnnotation;
 
 export type TextMarkupType = 'highlight' | 'underline' | 'strikeout';
 
-export function isTextMarkup(a: Annotation): a is HighlightAnnotation | UnderlineAnnotation | StrikeoutAnnotation {
+export function isTextMarkup(
+  a: Annotation
+): a is HighlightAnnotation | UnderlineAnnotation | StrikeoutAnnotation {
   return a.type === 'highlight' || a.type === 'underline' || a.type === 'strikeout';
 }
 
@@ -111,6 +128,14 @@ export function isStickyNote(a: Annotation): a is StickyNoteAnnotation {
 
 export function isFreeText(a: Annotation): a is FreeTextAnnotation {
   return a.type === 'free-text';
+}
+
+export function isRedaction(a: Annotation): a is RedactionAnnotation {
+  return a.type === 'redaction';
+}
+
+export function isStamp(a: Annotation): a is StampAnnotation {
+  return a.type === 'stamp';
 }
 
 export const DEFAULT_ANNOTATION_COLOR = '#FFEB3B';
@@ -143,6 +168,9 @@ export function toolCursor(tool: AnnotationTool): string {
     case 'ellipse':
     case 'line':
     case 'arrow':
+    case 'redaction':
       return 'crosshair';
+    case 'stamp':
+      return 'cell';
   }
 }

@@ -124,6 +124,22 @@ describe('Document Store', () => {
 
       expect(useDocumentStore.getState().tabs[0]!.currentPage).toBe(1);
     });
+
+    it('stores password via updateTabState after apply-password', () => {
+      const id = useDocumentStore.getState().openTab('/path/a.pdf', 'a.pdf');
+      expect(useDocumentStore.getState().getTab(id)?.password).toBeUndefined();
+
+      useDocumentStore.getState().updateTabState(id, { password: 'secret' });
+      expect(useDocumentStore.getState().getTab(id)?.password).toBe('secret');
+    });
+
+    it('clears password via updateTabState after remove-password', () => {
+      const id = useDocumentStore.getState().openTab('/path/a.pdf', 'a.pdf', 'initial');
+      expect(useDocumentStore.getState().getTab(id)?.password).toBe('initial');
+
+      useDocumentStore.getState().updateTabState(id, { password: undefined });
+      expect(useDocumentStore.getState().getTab(id)?.password).toBeUndefined();
+    });
   });
 
   describe('getActiveTab', () => {
