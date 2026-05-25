@@ -78,7 +78,8 @@ export function OcrDialog({
       setStatus('complete');
     } catch (err) {
       setStatus('error');
-      setErrorMessage(err instanceof Error ? err.message : 'OCR failed');
+      const msg = err instanceof Error ? err.message : String(err || '');
+      setErrorMessage(msg || 'OCR failed');
     }
   }, [filePath, pageNumbers, language, dpi, password]);
 

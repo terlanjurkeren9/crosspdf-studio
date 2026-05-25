@@ -46,7 +46,7 @@ export function runOcr(
             resolve(event.results);
           } else if (event.type === 'error') {
             worker.removeEventListener('message', handler);
-            reject(new Error(event.message));
+            reject(new Error(event.message || 'OCR processing failed'));
           }
         };
 

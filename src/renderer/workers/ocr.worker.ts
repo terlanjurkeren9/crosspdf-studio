@@ -3,6 +3,43 @@ import pdfjsWorkerUrl from 'pdfjs-dist/build/pdf.worker.mjs?url';
 
 pdfjsLib.GlobalWorkerOptions.workerSrc = pdfjsWorkerUrl;
 
+// ── OffscreenCanvas factory ────────────────────────────────────────────────
+// pdf.js renders page content directly into the canvasContext we pass to
+// page.render(), but it may need *auxiliary* canvases (blend groups, soft
+// masks, patterns, tiling patterns).  In a worker there is no DOM, so the
+// built-in DOMCanvasFactory crashes with "Cannot read properties of
+// undefined (reading 'createElement')".
+//
+// IMPORTANT: pdf.js calls `new CanvasFactory({ enableHWA })` — the value
+// passed to getDocument must be a **constructor**, not a plain object.
+// Passing a plain object causes "M is not a constructor".
+
+interface CanvasAndContext {
+  canvas: OffscreenCanvas;
+  context: OffscreenCanvasRenderingContext2D;
+}
+
+class OffscreenCanvasFactory {
+  // pdf.js calls `new CanvasFactory({ enableHWA })` — constructor ignores it;
+  // OffscreenCanvas automatically uses GPU when available.
+
+  create(width: number, height: number): CanvasAndContext {
+    const canvas = new OffscreenCanvas(width, height);
+    const context = canvas.getContext('2d')!;
+    return { canvas, context };
+  }
+
+  reset(canvasAndContext: CanvasAndContext, width: number, height: number): void {
+    canvasAndContext.canvas.width = width;
+    canvasAndContext.canvas.height = height;
+  }
+
+  destroy(canvasAndContext: CanvasAndContext): void {
+    canvasAndContext.canvas.width = 0;
+    canvasAndContext.canvas.height = 0;
+  }
+}
+
 export interface OcrRequest {
   id: string;
   pdfBytes: ArrayBuffer;
@@ -124,13 +161,15 @@ async function processOcrRequest(request: OcrRequest): Promise<void> {
   let tesseractWorker: Awaited<ReturnType<TesseractWorkerFactory>> | null = null;
 
   try {
-    // Load PDF — include password for encrypted PDFs
-    const docParams: Parameters<typeof pdfjsLib.getDocument>[0] = {
+    // Load PDF — include password for encrypted PDFs, custom canvas factory
+    // for worker (avoids DOM createElement on auxiliary canvases).
+    const docParams: Record<string, unknown> = {
       data: pdfBytes.slice(0),
       useWorkerFetch: false,
       useSystemFonts: false,
       disableAutoFetch: true,
       disableStream: true,
+      CanvasFactory: OffscreenCanvasFactory,
     };
     if (password) {
       docParams.password = password;
@@ -167,42 +206,50 @@ async function processOcrRequest(request: OcrRequest): Promise<void> {
         progress: 0,
       } satisfies OcrProgressEvent);
 
-      // Render page at configured DPI
-      const imageData = await renderPageToImage(pdfDoc, pageNumber, request.dpi);
+      try {
+        // Render page at configured DPI
+        const imageData = await renderPageToImage(pdfDoc, pageNumber, request.dpi);
 
-      // Preprocess for better OCR
-      const processed = preprocessForOcr(imageData);
+        // Preprocess for better OCR
+        const processed = preprocessForOcr(imageData);
 
-      // Convert to blob for Tesseract
-      const blob = await imageDataToBlob(processed);
+        // Convert to blob for Tesseract
+        const blob = await imageDataToBlob(processed);
 
-      // Report rendering done
-      self.postMessage({
-        id,
-        type: 'progress',
-        pageNumber,
-        pageIndex: i,
-        totalPages,
-        progress: 0.3,
-      } satisfies OcrProgressEvent);
+        // Report rendering done
+        self.postMessage({
+          id,
+          type: 'progress',
+          pageNumber,
+          pageIndex: i,
+          totalPages,
+          progress: 0.3,
+        } satisfies OcrProgressEvent);
 
-      // Run OCR
-      const { data } = await tesseractWorker.recognize(blob);
+        // Run OCR
+        const { data } = await tesseractWorker.recognize(blob);
 
-      // Tesseract returns confidence 0–100; normalize to 0–1 for internal contract.
-      const rawConfidence = data.confidence ?? 0;
-      const confidence =
-        Number.isFinite(rawConfidence) && rawConfidence > 1
-          ? rawConfidence / 100
-          : Number.isFinite(rawConfidence)
-            ? rawConfidence
-            : 0;
+        // Tesseract returns confidence 0–100; normalize to 0–1 for internal contract.
+        const rawConfidence = data.confidence ?? 0;
+        const confidence =
+          Number.isFinite(rawConfidence) && rawConfidence > 1
+            ? rawConfidence / 100
+            : Number.isFinite(rawConfidence)
+              ? rawConfidence
+              : 0;
 
-      results.push({
-        pageNumber,
-        text: data.text,
-        confidence: Math.max(0, Math.min(1, confidence)),
-      });
+        results.push({
+          pageNumber,
+          text: data.text,
+          confidence: Math.max(0, Math.min(1, confidence)),
+        });
+      } catch (pageErr) {
+        const reason =
+          pageErr instanceof Error ? pageErr.message : String(pageErr || 'Unknown error');
+        throw new Error(`OCR failed on page ${pageNumber}: ${reason}`, {
+          cause: pageErr,
+        });
+      }
 
       // Report page done
       self.postMessage({
@@ -221,10 +268,16 @@ async function processOcrRequest(request: OcrRequest): Promise<void> {
       results,
     } satisfies OcrCompleteEvent);
   } catch (err) {
+    const reason =
+      err instanceof Error && err.message
+        ? err.message
+        : typeof err === 'string' && err.length > 0
+          ? err
+          : 'OCR processing failed';
     self.postMessage({
       id,
       type: 'error',
-      message: err instanceof Error ? err.message : 'OCR processing failed',
+      message: reason,
     } satisfies OcrErrorEvent);
   } finally {
     if (tesseractWorker) await tesseractWorker.terminate().catch(() => {});
