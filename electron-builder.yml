@@ -25,6 +25,7 @@ extraResources:
     to: darwin-arm64/libcrypto.3.dylib
 
 mac:
+  icon: resources/icon.icns
   category: public.app-category.productivity
   target:
     - target: dmg
@@ -40,6 +41,7 @@ mac:
   entitlementsInherit: resources/entitlements.mac.plist
 
 win:
+  icon: resources/icon.ico
   target:
     - target: nsis
       arch:
