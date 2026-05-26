@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react';
 import type { PDFDocumentProxy } from 'pdfjs-dist';
+import { ChevronRight, MessageSquareText, Search, Rows3 } from 'lucide-react';
 import { useUIStore } from '../../stores/ui.store';
 import { ThumbnailPanel } from './ThumbnailPanel';
 import { SearchPanel } from './SearchPanel';
@@ -16,13 +17,13 @@ interface SidebarProps {
   activeTabId?: string | null;
 }
 
-const PANEL_LABELS: Record<PanelType, string> = {
-  thumbnails: 'Thumbnails',
-  search: 'Search',
-  comments: 'Comments',
+const PANELS: Record<PanelType, { label: string; icon: typeof Rows3 }> = {
+  thumbnails: { label: 'Thumbnails', icon: Rows3 },
+  search: { label: 'Search', icon: Search },
+  comments: { label: 'Comments', icon: MessageSquareText },
 };
 
-function TabButton({
+function RailButton({
   panel,
   activePanel,
   onClick,
@@ -32,18 +33,21 @@ function TabButton({
   onClick: () => void;
 }) {
   const isActive = activePanel === panel;
+  const Icon = PANELS[panel].icon;
   return (
     <button
       type="button"
       onClick={onClick}
-      className={`px-2 h-7 text-xs font-medium rounded transition-colors ${
+      className={`flex h-9 w-9 items-center justify-center rounded-md transition-colors ${
         isActive
-          ? 'bg-white dark:bg-surface-900 text-brand-600 dark:text-brand-400 shadow-sm'
-          : 'text-surface-500 hover:bg-surface-200 hover:text-surface-700 dark:hover:bg-surface-800 dark:hover:text-surface-300'
+          ? 'bg-brand-50 text-brand-700 ring-1 ring-brand-100 dark:bg-brand-950/60 dark:text-brand-300 dark:ring-brand-900'
+          : 'text-surface-500 hover:bg-surface-100 hover:text-surface-900 dark:text-surface-400 dark:hover:bg-surface-800 dark:hover:text-surface-100'
       }`}
+      title={PANELS[panel].label}
+      aria-label={PANELS[panel].label}
       aria-pressed={isActive}
     >
-      {PANEL_LABELS[panel]}
+      <Icon className="h-4 w-4" />
     </button>
   );
 }
@@ -60,137 +64,79 @@ export function Sidebar({
   const sidebarWidth = useUIStore((s) => s.sidebarWidth);
   const activePanel = useUIStore((s) => s.sidebarActivePanel);
   const setSidebarPanel = useUIStore((s) => s.setSidebarPanel);
-  const toggleSidebar = useUIStore((s) => s.toggleSidebar);
 
-  // Remember last active panel so >>> can restore it
   const lastPanelRef = useRef<PanelType | null>(null);
   const panel = (activePanel as PanelType | null) || null;
 
   useEffect(() => {
-    if (panel) {
-      lastPanelRef.current = panel;
-    }
+    if (panel) lastPanelRef.current = panel;
   }, [panel]);
 
-  // ── Hidden: show persistent handle at top-left edge ───────────
   if (!sidebarOpen) {
     return (
-      <aside className="h-full flex flex-col shrink-0" style={{ width: 0 }}>
+      <aside className="h-full shrink-0" style={{ width: 0 }}>
         <button
           type="button"
-          onClick={() => {
-            setSidebarPanel(lastPanelRef.current || 'thumbnails');
-          }}
-          className="absolute left-0 top-[88px] z-[90] p-1.5 rounded-r bg-surface-100 dark:bg-surface-900 border border-surface-200 dark:border-surface-700 border-l-0 text-surface-500 hover:text-surface-700 dark:hover:text-surface-300 shadow-sm"
+          onClick={() => setSidebarPanel(lastPanelRef.current || 'thumbnails')}
+          className="absolute left-0 top-[90px] z-[90] flex h-8 w-7 items-center justify-center rounded-r-md border border-l-0 border-surface-200 bg-white text-surface-500 shadow-sm hover:text-surface-900 dark:border-surface-700 dark:bg-surface-900 dark:text-surface-400 dark:hover:text-surface-100"
           title="Show sidebar"
           aria-label="Show sidebar"
         >
-          <svg
-            className="w-3.5 h-3.5"
-            fill="none"
-            viewBox="0 0 24 24"
-            stroke="currentColor"
-            strokeWidth={2}
-          >
-            <path strokeLinecap="round" strokeLinejoin="round" d="M13 5l7 7-7 7M5 5l7 7-7 7" />
-          </svg>
+          <ChevronRight className="h-4 w-4" />
         </button>
       </aside>
     );
   }
 
-  // ── Collapsed strip ──────────────────────────────────────────
-  if (panel === null) {
-    return (
-      <aside
-        className="h-full flex flex-col items-center bg-surface-50 dark:bg-surface-950 border-r border-surface-200 dark:border-surface-800 shrink-0"
-        style={{ width: 44 }}
-      >
-        <button
-          type="button"
-          onClick={() => {
-            setSidebarPanel(lastPanelRef.current || 'thumbnails');
-          }}
-          className="mt-2 p-1.5 rounded hover:bg-surface-200 dark:hover:bg-surface-700 text-surface-500"
-          title="Expand sidebar"
-          aria-label="Expand sidebar"
-        >
-          <svg
-            className="w-4 h-4"
-            fill="none"
-            viewBox="0 0 24 24"
-            stroke="currentColor"
-            strokeWidth={2}
-          >
-            <path strokeLinecap="round" strokeLinejoin="round" d="M13 5l7 7-7 7M5 5l7 7-7 7" />
-          </svg>
-        </button>
-      </aside>
-    );
-  }
-
-  // ── Expanded panel ───────────────────────────────────────────
   return (
-    <aside
-      className="h-full flex flex-col bg-surface-50 dark:bg-surface-950 border-r border-surface-200 dark:border-surface-800 shrink-0 transition-[width]"
-      style={{ width: sidebarWidth }}
-    >
-      {/* Tab bar + collapse button */}
-      <div className="flex items-center h-9 shrink-0 border-b border-surface-200 dark:border-surface-800 bg-surface-100 dark:bg-surface-900 px-1 gap-0.5">
-        {(Object.keys(PANEL_LABELS) as PanelType[]).map((p) => (
-          <TabButton key={p} panel={p} activePanel={panel} onClick={() => setSidebarPanel(p)} />
+    <aside className="flex h-full shrink-0 border-r border-surface-200 bg-white dark:border-surface-800 dark:bg-surface-950">
+      <div className="flex w-12 flex-col items-center gap-1 border-r border-surface-200 px-1.5 py-2 dark:border-surface-800">
+        {(Object.keys(PANELS) as PanelType[]).map((p) => (
+          <RailButton key={p} panel={p} activePanel={panel} onClick={() => setSidebarPanel(p)} />
         ))}
         <div className="flex-1" />
-        <button
-          type="button"
-          onClick={toggleSidebar}
-          className="shrink-0 p-1 rounded border border-surface-300 dark:border-surface-600 bg-surface-50 dark:bg-surface-800 text-surface-600 dark:text-surface-300 hover:bg-surface-200 dark:hover:bg-surface-700 hover:text-surface-900 dark:hover:text-surface-100"
-          title="Collapse sidebar"
-          aria-label="Collapse sidebar"
+      </div>
+
+      {panel && (
+        <div
+          className="flex h-full flex-col bg-surface-50 transition-[width] dark:bg-surface-950"
+          style={{ width: Math.max(220, sidebarWidth - 48) }}
         >
-          <svg
-            className="w-4 h-4"
-            fill="none"
-            viewBox="0 0 24 24"
-            stroke="currentColor"
-            strokeWidth={2}
-          >
-            <path strokeLinecap="round" strokeLinejoin="round" d="M11 19l-7-7 7-7m8 14l-7-7 7-7" />
-          </svg>
-        </button>
-      </div>
+          <div className="flex h-10 shrink-0 items-center border-b border-surface-200 px-3 dark:border-surface-800">
+            <h2 className="text-xs font-semibold uppercase tracking-wider text-surface-500">
+              {PANELS[panel].label}
+            </h2>
+          </div>
 
-      {/* Panel content */}
-      <div className="flex-1 min-w-0 overflow-hidden">
-        {panel === 'thumbnails' && pdfDocument && (
-          <ThumbnailPanel
-            key={activeTabId ?? 'no-tab'}
-            pdfDocument={pdfDocument}
-            numPages={numPages}
-            currentPage={currentPage}
-            onPageClick={onNavigateToPage}
-          />
-        )}
-        {panel === 'thumbnails' && !pdfDocument && (
-          <div className="p-3 text-xs text-surface-400">Open a document to view thumbnails</div>
-        )}
+          <div className="min-w-0 flex-1 overflow-hidden">
+            {panel === 'thumbnails' && pdfDocument && (
+              <ThumbnailPanel
+                key={activeTabId ?? 'no-tab'}
+                pdfDocument={pdfDocument}
+                numPages={numPages}
+                currentPage={currentPage}
+                onPageClick={onNavigateToPage}
+              />
+            )}
+            {panel === 'thumbnails' && !pdfDocument && (
+              <div className="p-3 text-xs text-surface-500">Open a document to view pages.</div>
+            )}
 
-        {panel === 'search' && (
-          <SearchPanel
-            pdfDocument={pdfDocument}
-            numPages={numPages}
-            onNavigateToPage={onNavigateToPage}
-            autoFocus={searchAutoFocus}
-          />
-        )}
+            {panel === 'search' && (
+              <SearchPanel
+                pdfDocument={pdfDocument}
+                numPages={numPages}
+                onNavigateToPage={onNavigateToPage}
+                autoFocus={searchAutoFocus}
+              />
+            )}
 
-        {panel === 'comments' && (
-          <CommentPanel
-            tabId={activeTabId ?? null}
-            onNavigateToPage={onNavigateToPage}
-          />
-        )}
-      </div>
+            {panel === 'comments' && (
+              <CommentPanel tabId={activeTabId ?? null} onNavigateToPage={onNavigateToPage} />
+            )}
+          </div>
+        </div>
+      )}
     </aside>
   );
 }

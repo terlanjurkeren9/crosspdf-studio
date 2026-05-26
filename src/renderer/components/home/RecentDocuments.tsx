@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { FileText, FolderOpen } from 'lucide-react';
 import type { RecentDocumentResult } from '../../../shared/types/ipc.types';
 
 interface RecentDocumentsProps {
@@ -35,72 +36,68 @@ export function RecentDocuments({ onOpenFile }: RecentDocumentsProps) {
     };
   }, []);
 
-  if (loading) {
-    return (
-      <div className="space-y-2">
-        <h3 className="text-xs font-semibold text-surface-500 uppercase tracking-wider">
-          Recent Documents
+  return (
+    <div className="flex h-full min-h-0 flex-col">
+      <div className="mb-3 flex items-center justify-between">
+        <h3 className="text-xs font-semibold uppercase tracking-wider text-surface-500">
+          Recent documents
         </h3>
-        <div className="space-y-1">
-          {[1, 2, 3].map((i) => (
-            <div key={i} className="h-8 bg-surface-100 dark:bg-surface-800 rounded animate-pulse" />
+        <span className="text-xs text-surface-400">{recentDocs.length || ''}</span>
+      </div>
+
+      {loading && (
+        <div className="space-y-2">
+          {[1, 2, 3, 4].map((i) => (
+            <div
+              key={i}
+              className="h-12 animate-pulse rounded-md bg-surface-100 dark:bg-surface-800"
+            />
           ))}
         </div>
-      </div>
-    );
-  }
+      )}
 
-  if (error) {
-    return (
-      <div className="space-y-2">
-        <h3 className="text-xs font-semibold text-surface-500 uppercase tracking-wider">
-          Recent Documents
-        </h3>
-        <p className="text-xs text-surface-400">Unavailable</p>
-      </div>
-    );
-  }
+      {!loading && error && (
+        <p className="text-sm text-surface-500">Recent documents unavailable.</p>
+      )}
 
-  if (recentDocs.length === 0) return null;
+      {!loading && !error && recentDocs.length === 0 && (
+        <div className="flex flex-1 flex-col items-center justify-center gap-3 text-center text-surface-500">
+          <div className="flex h-12 w-12 items-center justify-center rounded-md border border-dashed border-surface-300 dark:border-surface-700">
+            <FolderOpen className="h-5 w-5" />
+          </div>
+          <div>
+            <p className="text-sm font-medium text-surface-700 dark:text-surface-200">
+              No recent files
+            </p>
+            <p className="mt-1 text-xs">Open a PDF to start building your workspace.</p>
+          </div>
+        </div>
+      )}
 
-  return (
-    <div className="space-y-2">
-      <h3 className="text-xs font-semibold text-surface-500 uppercase tracking-wider">
-        Recent Documents
-      </h3>
-      <div className="space-y-1">
-        {recentDocs.map((doc) => (
-          <button
-            key={doc.id}
-            type="button"
-            onClick={() => onOpenFile(doc.filePath)}
-            className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-left hover:bg-surface-100 dark:hover:bg-surface-800 transition-colors group"
-          >
-            {/* PDF icon */}
-            <div className="shrink-0 w-8 h-8 rounded bg-red-100 dark:bg-red-900 flex items-center justify-center">
-              <svg
-                className="w-4 h-4 text-red-500 dark:text-red-400"
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
-                strokeWidth={2}
+      {!loading && !error && recentDocs.length > 0 && (
+        <div className="min-h-0 flex-1 overflow-auto">
+          <div className="divide-y divide-surface-100 dark:divide-surface-800">
+            {recentDocs.map((doc) => (
+              <button
+                key={doc.id}
+                type="button"
+                onClick={() => onOpenFile(doc.filePath)}
+                className="group flex w-full items-center gap-3 rounded-md px-3 py-2.5 text-left hover:bg-surface-100 dark:hover:bg-surface-800"
               >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z"
-                />
-              </svg>
-            </div>
-            <div className="flex-1 min-w-0">
-              <p className="text-sm text-surface-700 dark:text-surface-200 truncate group-hover:text-surface-900 dark:group-hover:text-surface-100">
-                {doc.fileName}
-              </p>
-              <p className="text-[11px] text-surface-400 truncate">{doc.filePath}</p>
-            </div>
-          </button>
-        ))}
-      </div>
+                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-brand-50 text-brand-700 ring-1 ring-brand-100 dark:bg-brand-950/50 dark:text-brand-300 dark:ring-brand-900">
+                  <FileText className="h-4 w-4" />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-sm font-medium text-surface-800 group-hover:text-surface-950 dark:text-surface-100">
+                    {doc.fileName}
+                  </p>
+                  <p className="truncate text-[11px] text-surface-400">{doc.filePath}</p>
+                </div>
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

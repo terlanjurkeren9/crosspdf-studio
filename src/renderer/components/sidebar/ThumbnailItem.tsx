@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef } from 'react';
 import type { PDFDocumentProxy } from 'pdfjs-dist';
+import { Check } from 'lucide-react';
 import { usePdfThumbnail } from '../../hooks/usePdfThumbnail';
 import { Spinner } from '../ui/Spinner';
 
@@ -74,12 +75,12 @@ export function ThumbnailItem({
   return (
     <div
       ref={sentinelRef}
-      className={`group cursor-pointer rounded border-2 p-1 transition-colors relative ${
+      className={`group relative cursor-pointer rounded-md border p-1.5 transition-colors ${
         isActive
-          ? 'border-brand-500 bg-brand-50 dark:bg-brand-950'
+          ? 'border-brand-500 bg-brand-50 shadow-sm dark:bg-brand-950/50'
           : selected
-            ? 'border-brand-300 bg-brand-50/50 dark:bg-brand-950/50'
-            : 'border-transparent hover:border-surface-300 dark:hover:border-surface-600'
+            ? 'border-brand-300 bg-brand-50/60 dark:bg-brand-950/40'
+            : 'border-transparent hover:border-surface-300 hover:bg-white dark:hover:border-surface-700 dark:hover:bg-surface-900'
       }`}
       onClick={handleClick}
       onContextMenu={handleContextMenu}
@@ -95,17 +96,13 @@ export function ThumbnailItem({
         }}
       >
         <div
-          className={`w-3.5 h-3.5 rounded border flex items-center justify-center transition-colors ${
+          className={`flex h-3.5 w-3.5 items-center justify-center rounded border transition-colors ${
             selected
               ? 'bg-brand-500 border-brand-500 text-white'
               : 'bg-white dark:bg-surface-800 border-surface-300 dark:border-surface-600 opacity-0 group-hover:opacity-100'
           }`}
         >
-          {selected && (
-            <svg className="w-2.5 h-2.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-            </svg>
-          )}
+          {selected && <Check className="h-2.5 w-2.5" />}
         </div>
       </div>
 
@@ -114,7 +111,7 @@ export function ThumbnailItem({
         <span className="text-[10px] text-surface-500 font-medium tabular-nums">{pageNumber}</span>
 
         {/* Thumbnail image or placeholder */}
-        <div className="w-full bg-white dark:bg-surface-800 rounded-sm overflow-hidden shadow-sm">
+        <div className="w-full overflow-hidden rounded-sm bg-white shadow-sm ring-1 ring-surface-200 dark:bg-surface-800 dark:ring-surface-700">
           {state.status === 'loading' && (
             <div className="flex items-center justify-center h-20">
               <Spinner className="w-4 h-4" />

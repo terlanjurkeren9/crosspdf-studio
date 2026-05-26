@@ -12,6 +12,7 @@ import { PageTextLayer } from './PageTextLayer';
 import { AnnotationLayer } from './AnnotationLayer';
 import { ViewerToolbar } from './ViewerToolbar';
 import { ViewerStatusBar } from './ViewerStatusBar';
+import { AlertCircle } from 'lucide-react';
 import { Spinner } from '../ui/Spinner';
 import { Button } from '../ui/Button';
 import { clampZoom, computeFitZoom, ZOOM_FACTOR } from '../../lib/zoom';
@@ -634,10 +635,6 @@ export function PdfViewer({ tab, onOpenAnother, onPdfDocumentLoaded, viewerRef }
     useUIStore.getState().openDialog('images-to-pdf');
   }, []);
 
-  const handlePreferences = useCallback(() => {
-    useUIStore.getState().openDialog('preferences');
-  }, []);
-
   // ── Stamp: placement handler ────────────────────────────────
 
   const handleStampClick = useCallback(
@@ -965,7 +962,7 @@ export function PdfViewer({ tab, onOpenAnother, onPdfDocumentLoaded, viewerRef }
   const isDisabled = docState.status !== 'ready';
 
   return (
-    <div className="h-full flex flex-col bg-surface-100 dark:bg-surface-900">
+    <div className="flex h-full flex-col bg-surface-100 dark:bg-surface-900">
       <ViewerToolbar
         fileName={tab.fileName}
         numPages={numPages}
@@ -1008,7 +1005,6 @@ export function PdfViewer({ tab, onOpenAnother, onPdfDocumentLoaded, viewerRef }
         hasStamps={hasStamps}
         onPdfToImages={handlePdfToImages}
         onImagesToPdf={handleImagesToPdf}
-        onPreferences={handlePreferences}
       />
 
       {/* Content area */}
@@ -1030,19 +1026,7 @@ export function PdfViewer({ tab, onOpenAnother, onPdfDocumentLoaded, viewerRef }
         {docState.status === 'error' && (
           <div className="h-full flex flex-col items-center justify-center gap-4 p-8 text-center">
             <div className="text-red-500 dark:text-red-400">
-              <svg
-                className="w-12 h-12 mx-auto"
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
-                strokeWidth={1.5}
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  d="M12 9v2m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-                />
-              </svg>
+              <AlertCircle className="mx-auto h-12 w-12" />
             </div>
             <div>
               <p className="text-sm font-medium text-surface-700 dark:text-surface-200">
@@ -1057,23 +1041,11 @@ export function PdfViewer({ tab, onOpenAnother, onPdfDocumentLoaded, viewerRef }
         )}
 
         {docState.status === 'ready' && viewMode === 'single' && (
-          <div className="h-full overflow-auto flex justify-center bg-surface-200/50 dark:bg-surface-800/50">
+          <div className="pdf-workspace flex h-full justify-center overflow-auto">
             {renderError && (
               <div className="flex flex-col items-center justify-center gap-4 p-8 text-center self-center">
                 <div className="text-amber-500 dark:text-amber-400">
-                  <svg
-                    className="w-12 h-12 mx-auto"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                    stroke="currentColor"
-                    strokeWidth={1.5}
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      d="M12 9v2m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-                    />
-                  </svg>
+                  <AlertCircle className="mx-auto h-12 w-12" />
                 </div>
                 <div>
                   <p className="text-sm font-medium text-surface-700 dark:text-surface-200">
@@ -1086,7 +1058,7 @@ export function PdfViewer({ tab, onOpenAnother, onPdfDocumentLoaded, viewerRef }
             )}
 
             {!renderError && (
-              <div className="p-4">
+              <div className="p-5">
                 <div
                   className="relative"
                   ref={textLayerContainerRef}
@@ -1094,7 +1066,7 @@ export function PdfViewer({ tab, onOpenAnother, onPdfDocumentLoaded, viewerRef }
                 >
                   <canvas
                     ref={canvasRef}
-                    className="block shadow bg-white"
+                    className="block bg-white shadow-xl shadow-surface-950/20"
                     aria-label={`Page ${currentPage} of ${numPages}`}
                   />
                   {pdfDocument && (

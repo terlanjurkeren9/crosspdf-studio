@@ -1,4 +1,5 @@
-import { usePlatform } from '../../hooks/usePlatform';
+import { FilePlus2, FileText, FolderOpen, Images, ShieldCheck } from 'lucide-react';
+import { useUIStore } from '../../stores/ui.store';
 import { Button } from '../ui/Button';
 import { RecentDocuments } from './RecentDocuments';
 
@@ -8,68 +9,72 @@ interface HomeScreenProps {
 }
 
 export function HomeScreen({ onOpenFile, onOpenFilePath }: HomeScreenProps) {
-  const { platform, isMac } = usePlatform();
+  const openDialog = useUIStore((s) => s.openDialog);
 
   return (
-    <div className="h-full flex flex-col items-center justify-center p-8">
-      <div className="max-w-md w-full text-center space-y-8">
-        {/* Logo / Brand */}
-        <div className="space-y-3">
-          <div className="mx-auto w-16 h-16 rounded-2xl bg-brand-500 flex items-center justify-center">
-            <span className="text-white text-2xl font-bold">CP</span>
-          </div>
-          <h1 className="text-2xl font-bold text-surface-900 dark:text-surface-100">
-            CrossPDF Studio
-          </h1>
-          <p className="text-sm text-surface-500 dark:text-surface-400">
-            Professional cross-platform PDF editor
-          </p>
-        </div>
-
-        {/* Quick Actions */}
-        <div className="space-y-3">
-          <Button onClick={onOpenFile} className="w-full">
-            Open PDF Document
-          </Button>
-          <p className="text-xs text-surface-400">
-            Press{' '}
-            <kbd className="px-1.5 py-0.5 rounded bg-surface-200 dark:bg-surface-700 text-surface-500 text-xs">
-              Ctrl+O
-            </kbd>{' '}
-            to open a PDF file
-          </p>
-        </div>
-
-        {/* Recent Documents */}
-        <RecentDocuments onOpenFile={onOpenFilePath} />
-
-        {/* System Info */}
-        {platform && (
-          <div className="pt-6 border-t border-surface-200 dark:border-surface-800">
-            <div className="grid grid-cols-2 gap-2 text-xs text-surface-400">
-              <span className="text-right">Platform</span>
-              <span className="text-left text-surface-600 dark:text-surface-300">
-                {isMac ? 'macOS' : platform.platform}
-              </span>
-              <span className="text-right">Arch</span>
-              <span className="text-left text-surface-600 dark:text-surface-300">
-                {platform.arch}
-              </span>
-              <span className="text-right">Electron</span>
-              <span className="text-left text-surface-600 dark:text-surface-300">
-                {platform.electronVersion}
-              </span>
-              <span className="text-right">Chrome</span>
-              <span className="text-left text-surface-600 dark:text-surface-300">
-                {platform.chromeVersion}
-              </span>
-              <span className="text-right">Node</span>
-              <span className="text-left text-surface-600 dark:text-surface-300">
-                {platform.nodeVersion}
-              </span>
+    <div className="h-full overflow-auto bg-surface-50 dark:bg-surface-950">
+      <div className="mx-auto grid min-h-full max-w-6xl grid-cols-1 gap-6 px-8 py-8 xl:h-full xl:grid-cols-[minmax(0,1fr)_300px]">
+        <section className="flex min-h-0 flex-col">
+          <div className="mb-6 flex items-center gap-3">
+            <div className="flex h-10 w-10 items-center justify-center rounded-md bg-brand-600 text-white shadow-sm shadow-brand-900/20">
+              <FileText className="h-5 w-5" />
+            </div>
+            <div>
+              <h2 className="text-lg font-semibold text-surface-950 dark:text-surface-50">
+                CrossPDF Studio
+              </h2>
+              <p className="text-sm text-surface-500 dark:text-surface-400">
+                Offline PDF editing workspace
+              </p>
             </div>
           </div>
-        )}
+
+          <div className="min-h-0 flex-1 rounded-md border border-surface-200 bg-white p-4 shadow-sm dark:border-surface-800 dark:bg-surface-900">
+            <RecentDocuments onOpenFile={onOpenFilePath} />
+          </div>
+        </section>
+
+        <aside className="space-y-4">
+          <div className="rounded-md border border-surface-200 bg-white p-3 shadow-sm dark:border-surface-800 dark:bg-surface-900">
+            <h3 className="mb-3 px-1 text-xs font-semibold uppercase tracking-wider text-surface-500">
+              Start
+            </h3>
+            <div className="space-y-2">
+              <Button onClick={onOpenFile} className="w-full justify-start">
+                <FolderOpen className="h-4 w-4" />
+                Open PDF
+              </Button>
+              <Button
+                variant="secondary"
+                onClick={() => openDialog('images-to-pdf')}
+                className="w-full justify-start"
+              >
+                <Images className="h-4 w-4" />
+                Images to PDF
+              </Button>
+            </div>
+          </div>
+
+          <div className="rounded-md border border-surface-200 bg-white p-4 text-sm shadow-sm dark:border-surface-800 dark:bg-surface-900">
+            <h3 className="mb-3 text-xs font-semibold uppercase tracking-wider text-surface-500">
+              Common tools
+            </h3>
+            <div className="space-y-3 text-surface-600 dark:text-surface-300">
+              <div className="flex items-center gap-2">
+                <FilePlus2 className="h-4 w-4 text-brand-600" />
+                Merge, split, extract, reorder
+              </div>
+              <div className="flex items-center gap-2">
+                <ShieldCheck className="h-4 w-4 text-brand-600" />
+                Redaction and password protection
+              </div>
+              <div className="flex items-center gap-2">
+                <FileText className="h-4 w-4 text-brand-600" />
+                OCR, comments, highlights
+              </div>
+            </div>
+          </div>
+        </aside>
       </div>
     </div>
   );

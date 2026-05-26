@@ -179,9 +179,9 @@ export function PageList({
   return (
     <div
       ref={containerRef}
-      className="h-full overflow-auto flex flex-col items-center bg-surface-200/50 dark:bg-surface-800/50"
+      className="pdf-workspace h-full overflow-auto flex flex-col items-center"
     >
-      <div className="flex flex-col items-center py-4 gap-4 w-full">
+      <div className="flex w-full flex-col items-center gap-5 py-5">
         {Array.from({ length: numPages }, (_, i) => {
           const pageNumber = i + 1;
           const dims = pageDimsMap.get(pageNumber);
@@ -216,7 +216,7 @@ export function PageList({
                 />
               ) : (
                 <div
-                  className="bg-surface-100 dark:bg-surface-800 rounded animate-pulse shadow"
+                  className="animate-pulse rounded-sm bg-white/70 shadow-lg shadow-surface-950/10 dark:bg-surface-800"
                   style={{ width, height }}
                 />
               )}

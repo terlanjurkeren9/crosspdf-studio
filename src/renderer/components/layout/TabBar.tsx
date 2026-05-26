@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef } from 'react';
+import { FileText, Plus, X } from 'lucide-react';
 import type { TabState } from '../../stores/document.store';
 import { useDocumentStore } from '../../stores/document.store';
 
@@ -13,7 +14,6 @@ export function TabBar({ tabs, activeTabId, onOpenFile }: TabBarProps) {
   const closeTab = useDocumentStore((s) => s.closeTab);
   const tabBarRef = useRef<HTMLDivElement>(null);
 
-  // Scroll active tab into view
   useEffect(() => {
     if (!activeTabId) return;
     const el = tabBarRef.current?.querySelector(
@@ -22,20 +22,17 @@ export function TabBar({ tabs, activeTabId, onOpenFile }: TabBarProps) {
     el?.scrollIntoView({ block: 'nearest', inline: 'nearest' });
   }, [activeTabId]);
 
-  // Keyboard shortcuts: Ctrl+Tab / Ctrl+Shift+Tab
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
       if (!(e.ctrlKey || e.metaKey)) return;
       if (e.key === 'Tab') {
         e.preventDefault();
         const currentIdx = tabs.findIndex((t) => t.id === activeTabId);
-        if (e.shiftKey) {
-          const prev = (currentIdx - 1 + tabs.length) % tabs.length;
-          setActiveTab(tabs[prev]?.id ?? '');
-        } else {
-          const next = (currentIdx + 1) % tabs.length;
-          setActiveTab(tabs[next]?.id ?? '');
-        }
+        if (tabs.length === 0) return;
+        const nextIdx = e.shiftKey
+          ? (currentIdx - 1 + tabs.length) % tabs.length
+          : (currentIdx + 1) % tabs.length;
+        setActiveTab(tabs[nextIdx]?.id ?? '');
       }
     };
     window.addEventListener('keydown', handler);
@@ -55,7 +52,7 @@ export function TabBar({ tabs, activeTabId, onOpenFile }: TabBarProps) {
   return (
     <div
       ref={tabBarRef}
-      className="h-9 flex items-center gap-0 px-1 bg-surface-100 dark:bg-surface-900 border-b border-surface-200 dark:border-surface-800 overflow-x-auto shrink-0 select-none"
+      className="flex h-9 shrink-0 select-none items-end gap-0 overflow-x-auto border-b border-surface-200 bg-surface-100 px-2 dark:border-surface-800 dark:bg-surface-900"
       role="tablist"
       aria-label="Open documents"
     >
@@ -75,52 +72,36 @@ export function TabBar({ tabs, activeTabId, onOpenFile }: TabBarProps) {
                 setActiveTab(tab.id);
               }
             }}
-            className={`group flex items-center gap-1 h-7 px-2 text-xs cursor-pointer rounded-t border-x border-t transition-colors shrink-0 max-w-[180px] ${
+            className={`group mb-[-1px] flex h-8 max-w-[220px] shrink-0 cursor-pointer items-center gap-1.5 rounded-t-md border px-2.5 text-xs transition-colors ${
               isActive
-                ? 'bg-white dark:bg-surface-950 border-surface-200 dark:border-surface-700 text-surface-900 dark:text-surface-100'
-                : 'border-transparent text-surface-500 hover:text-surface-700 dark:hover:text-surface-300 hover:bg-surface-200/50 dark:hover:bg-surface-800/50'
+                ? 'border-surface-200 border-b-white bg-white text-surface-950 shadow-sm dark:border-surface-700 dark:border-b-surface-950 dark:bg-surface-950 dark:text-surface-50'
+                : 'border-transparent text-surface-500 hover:bg-surface-200/70 hover:text-surface-800 dark:text-surface-400 dark:hover:bg-surface-800/80 dark:hover:text-surface-100'
             }`}
           >
+            <FileText className={`h-3.5 w-3.5 shrink-0 ${isActive ? 'text-brand-600' : ''}`} />
             <span className="truncate">{tab.fileName}</span>
             <button
               type="button"
               onClick={(e) => handleCloseTab(e, tab.id)}
-              className={`shrink-0 p-0.5 rounded-sm transition-opacity hover:bg-surface-200 dark:hover:bg-surface-700 ${
+              className={`ml-1 inline-flex h-4 w-4 shrink-0 items-center justify-center rounded-sm transition-opacity hover:bg-surface-200 dark:hover:bg-surface-700 ${
                 isActive ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'
               }`}
               aria-label={`Close ${tab.fileName}`}
             >
-              <svg
-                className="w-3 h-3"
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
-                strokeWidth={2}
-              >
-                <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-              </svg>
+              <X className="h-3 w-3" />
             </button>
           </div>
         );
       })}
 
-      {/* New tab button */}
       <button
         type="button"
         onClick={onOpenFile}
-        className="shrink-0 ml-1 p-1 rounded hover:bg-surface-200 dark:hover:bg-surface-700 text-surface-400 hover:text-surface-600 dark:hover:text-surface-300"
+        className="mb-1 ml-1 inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-md text-surface-500 hover:bg-surface-200 hover:text-surface-900 dark:text-surface-400 dark:hover:bg-surface-800 dark:hover:text-surface-100"
         aria-label="Open new tab"
         title="Open new tab (Ctrl+O)"
       >
-        <svg
-          className="w-3.5 h-3.5"
-          fill="none"
-          viewBox="0 0 24 24"
-          stroke="currentColor"
-          strokeWidth={2}
-        >
-          <path strokeLinecap="round" strokeLinejoin="round" d="M12 5v14m-7-7h14" />
-        </svg>
+        <Plus className="h-3.5 w-3.5" />
       </button>
     </div>
   );

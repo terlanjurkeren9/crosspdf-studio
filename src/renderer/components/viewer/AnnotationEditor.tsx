@@ -62,7 +62,7 @@ export function AnnotationEditor({
     >
       <div
         style={style}
-        className="w-[260px] bg-white dark:bg-surface-900 border border-surface-300 dark:border-surface-600 rounded-lg shadow-lg p-3"
+        className="w-[260px] rounded-md border border-surface-300 bg-white p-3 shadow-xl shadow-surface-950/15 dark:border-surface-700 dark:bg-surface-900"
         onPointerDown={(e) => e.stopPropagation()}
       >
         <label className="block text-xs font-medium text-surface-600 dark:text-surface-400 mb-1.5">
@@ -73,14 +73,14 @@ export function AnnotationEditor({
           value={value}
           onChange={(e) => setValue(e.target.value)}
           onKeyDown={handleKeyDown}
-          className="w-full h-16 text-xs rounded border border-surface-300 dark:border-surface-600 bg-surface-50 dark:bg-surface-800 text-surface-900 dark:text-surface-100 p-2 resize-none outline-none focus:border-brand-400"
+          className="h-16 w-full resize-none rounded-md border border-surface-300 bg-surface-50 p-2 text-xs text-surface-900 outline-none focus:border-brand-500 dark:border-surface-700 dark:bg-surface-800 dark:text-surface-100"
           rows={3}
         />
         <div className="flex items-center justify-end gap-2 mt-2">
           <button
             type="button"
             onClick={onCancel}
-            className="px-2.5 py-1 text-xs rounded text-surface-500 hover:bg-surface-100 dark:hover:bg-surface-800"
+            className="rounded-md px-2.5 py-1 text-xs text-surface-500 hover:bg-surface-100 dark:hover:bg-surface-800"
           >
             Cancel
           </button>
@@ -89,7 +89,7 @@ export function AnnotationEditor({
             onClick={() => {
               if (value.trim()) onSave(value.trim());
             }}
-            className="px-3 py-1 text-xs rounded bg-brand-500 text-white hover:bg-brand-600 font-medium"
+            className="rounded-md bg-brand-600 px-3 py-1 text-xs font-medium text-white hover:bg-brand-700"
           >
             Save
           </button>

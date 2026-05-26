@@ -129,7 +129,11 @@ export function PageCanvas({
           <span className="text-xs">Render error</span>
         </div>
       )}
-      <canvas ref={canvasRef} className="block shadow bg-white" aria-label={`Page ${pageNumber}`} />
+      <canvas
+        ref={canvasRef}
+        className="block bg-white shadow-xl shadow-surface-950/20"
+        aria-label={`Page ${pageNumber}`}
+      />
       {state.status === 'done' && (
         <>
           <PageTextLayer pdfDocument={pdfDocument} pageNumber={pageNumber} zoom={zoom} />

@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react';
 import type { PDFDocumentProxy } from 'pdfjs-dist';
+import { FileText, PanelLeft, Settings } from 'lucide-react';
 import { useUIStore } from '../../stores/ui.store';
 import type { TabState } from '../../stores/document.store';
 import { TabBar } from './TabBar';
@@ -34,42 +35,57 @@ export function AppShell({
   const sidebarOpen = useUIStore((s) => s.sidebarOpen);
 
   return (
-    <div className="h-full flex flex-col bg-surface-50 dark:bg-surface-950">
-      {/* TitleBar */}
-      <header className="h-10 flex items-center px-4 bg-surface-100 dark:bg-surface-900 border-b border-surface-200 dark:border-surface-800 select-none shrink-0">
-        <h1 className="text-sm font-semibold text-surface-700 dark:text-surface-300">
-          CrossPDF Studio
-        </h1>
+    <div className="flex h-full flex-col bg-surface-50 text-surface-900 dark:bg-surface-950 dark:text-surface-100">
+      <header className="flex h-10 shrink-0 select-none items-center border-b border-surface-200 bg-white px-3 dark:border-surface-800 dark:bg-surface-950">
+        <div className="flex min-w-0 items-center gap-2">
+          <div className="flex h-6 w-6 items-center justify-center rounded-md bg-brand-600 text-white shadow-sm shadow-brand-900/20">
+            <FileText className="h-3.5 w-3.5" />
+          </div>
+          <h1 className="text-sm font-semibold text-surface-900 dark:text-surface-100">
+            CrossPDF Studio
+          </h1>
+        </div>
 
-        {/* Sidebar toggle */}
+        <nav className="ml-6 flex items-center gap-1 text-[12px] font-medium text-surface-600 dark:text-surface-400">
+          {['File', 'Edit', 'View', 'Tools', 'Help'].map((item) => (
+            <button
+              key={item}
+              type="button"
+              className="rounded px-2 py-1 hover:bg-surface-100 hover:text-surface-950 dark:hover:bg-surface-800 dark:hover:text-surface-100"
+            >
+              {item}
+            </button>
+          ))}
+        </nav>
+
         <div className="flex-1" />
         <button
           type="button"
           onClick={() => useUIStore.getState().toggleSidebar()}
-          className={`p-1 rounded text-xs ${
+          className={`inline-flex h-7 w-7 items-center justify-center rounded-md ${
             sidebarOpen
-              ? 'text-brand-600 dark:text-brand-400'
-              : 'text-surface-400 hover:text-surface-600'
+              ? 'bg-brand-50 text-brand-700 dark:bg-brand-950/60 dark:text-brand-300'
+              : 'text-surface-500 hover:bg-surface-100 hover:text-surface-900 dark:hover:bg-surface-800 dark:hover:text-surface-100'
           }`}
           title="Toggle sidebar"
+          aria-label="Toggle sidebar"
         >
-          <svg
-            className="w-4 h-4"
-            fill="none"
-            viewBox="0 0 24 24"
-            stroke="currentColor"
-            strokeWidth={2}
-          >
-            <path strokeLinecap="round" strokeLinejoin="round" d="M4 6h16M4 12h16M4 18h7" />
-          </svg>
+          <PanelLeft className="h-4 w-4" />
+        </button>
+        <button
+          type="button"
+          onClick={() => useUIStore.getState().openDialog('preferences')}
+          className="ml-1 inline-flex h-7 w-7 items-center justify-center rounded-md text-surface-500 hover:bg-surface-100 hover:text-surface-900 dark:text-surface-400 dark:hover:bg-surface-800 dark:hover:text-surface-100"
+          title="Preferences"
+          aria-label="Preferences"
+        >
+          <Settings className="h-4 w-4" />
         </button>
       </header>
 
-      {/* Tab bar */}
       <TabBar tabs={tabs} activeTabId={activeTabId} onOpenFile={onOpenFile} />
 
-      {/* Main: Sidebar + Content */}
-      <div className="flex-1 flex overflow-hidden">
+      <div className="flex flex-1 overflow-hidden">
         <Sidebar
           pdfDocument={activePdfDocument}
           numPages={activeNumPages}
@@ -79,13 +95,14 @@ export function AppShell({
           activeTabId={activeTabId}
         />
 
-        <main className="flex-1 overflow-hidden">{children}</main>
+        <main className="flex-1 overflow-hidden bg-surface-100 dark:bg-surface-900">
+          {children}
+        </main>
       </div>
 
-      {/* Status bar — only on home screen */}
       {!hasOpenDocument && (
-        <footer className="h-6 flex items-center px-3 bg-surface-100 dark:bg-surface-900 border-t border-surface-200 dark:border-surface-800 shrink-0">
-          <span className="text-xs text-surface-400">Ready</span>
+        <footer className="flex h-6 shrink-0 items-center border-t border-surface-200 bg-white px-3 dark:border-surface-800 dark:bg-surface-950">
+          <span className="text-xs text-surface-500">Ready</span>
         </footer>
       )}
 
