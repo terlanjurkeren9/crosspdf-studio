@@ -10,11 +10,18 @@ interface PdfToImagesDialogProps {
   filePath: string;
   fileName: string;
   numPages: number;
+  password?: string;
 }
 
 type Status = 'idle' | 'converting' | 'done' | 'error';
 
-export function PdfToImagesDialog({ open, onClose, filePath, numPages }: PdfToImagesDialogProps) {
+export function PdfToImagesDialog({
+  open,
+  onClose,
+  filePath,
+  numPages,
+  password,
+}: PdfToImagesDialogProps) {
   const [status, setStatus] = useState<Status>('idle');
   const [pageRange, setPageRange] = useState(`1-${numPages}`);
   const [dpi, setDpi] = useState(144);
@@ -100,7 +107,7 @@ export function PdfToImagesDialog({ open, onClose, filePath, numPages }: PdfToIm
       }
 
       const scale = dpi / 72;
-      const { images } = await convertPdfToImages(readResult.data, pageNumbers, scale);
+      const { images } = await convertPdfToImages(readResult.data, pageNumbers, scale, password);
 
       let writeErrors = 0;
       for (const img of images) {
@@ -121,7 +128,7 @@ export function PdfToImagesDialog({ open, onClose, filePath, numPages }: PdfToIm
       setErrorMessage(err instanceof Error ? err.message : 'Unknown error during conversion.');
       setStatus('error');
     }
-  }, [pageRange, dpi, filePath, parseRange]);
+  }, [pageRange, dpi, filePath, password, parseRange]);
 
   const handleClose = useCallback(() => {
     reset();

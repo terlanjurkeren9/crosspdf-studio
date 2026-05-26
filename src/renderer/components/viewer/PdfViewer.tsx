@@ -921,6 +921,43 @@ export function PdfViewer({ tab, onOpenAnother, onPdfDocumentLoaded, viewerRef }
     tab.id,
   ]);
 
+  // Create text markup annotation on mouseup after drag-select
+  const createTextMarkupRef = useRef(createTextMarkupFromSelection);
+  useEffect(() => {
+    createTextMarkupRef.current = createTextMarkupFromSelection;
+  });
+
+  useEffect(() => {
+    const handler = () => {
+      const tool = useAnnotationStore.getState().activeTool;
+      if (tool !== 'highlight' && tool !== 'underline' && tool !== 'strikeout') return;
+
+      // Let the browser finish updating the selection
+      setTimeout(() => {
+        const sel = document.getSelection();
+        if (!sel || sel.isCollapsed || sel.rangeCount === 0) return;
+
+        const range = sel.getRangeAt(0);
+        const textLayer = (range.startContainer as Node).parentElement?.closest(
+          '.textLayer'
+        ) as HTMLElement | null;
+        if (!textLayer) return;
+
+        const container = textLayer.parentElement as HTMLElement | null;
+        if (!container) return;
+
+        const pageEl = textLayer.closest('[data-page-number]') as HTMLElement | null;
+        const pageNum = pageEl ? parseInt(pageEl.dataset.pageNumber ?? '0', 10) : 0;
+        if (pageNum <= 0) return;
+
+        createTextMarkupRef.current(pageNum, container);
+      }, 0);
+    };
+
+    window.addEventListener('mouseup', handler);
+    return () => window.removeEventListener('mouseup', handler);
+  }, []);
+
   const isDisabled = docState.status !== 'ready';
 
   return (
@@ -1046,7 +1083,11 @@ export function PdfViewer({ tab, onOpenAnother, onPdfDocumentLoaded, viewerRef }
 
             {!renderError && (
               <div className="p-4">
-                <div className="relative" ref={textLayerContainerRef}>
+                <div
+                  className="relative"
+                  ref={textLayerContainerRef}
+                  data-page-number={currentPage}
+                >
                   <canvas
                     ref={canvasRef}
                     className="block shadow bg-white"

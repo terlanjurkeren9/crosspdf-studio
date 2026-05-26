@@ -458,6 +458,7 @@ export default function App() {
           filePath={(dialogProps as { filePath?: string }).filePath ?? activeTab.filePath}
           fileName={(dialogProps as { fileName?: string }).fileName ?? activeTab.fileName}
           numPages={(dialogProps as { numPages?: number }).numPages ?? activeNumPages}
+          password={activeTab.password}
         />
       )}
 

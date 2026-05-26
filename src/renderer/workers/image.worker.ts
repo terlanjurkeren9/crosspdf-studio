@@ -11,7 +11,8 @@ interface PdfToImagesRequest {
   type: 'pdf-to-images';
   pdfBytes: ArrayBuffer;
   pageNumbers: number[];
-  scale: number; // e.g. 2 for 144 DPI (2 * 72)
+  scale: number;
+  password?: string;
 }
 
 interface ImagesToPdfRequest {
@@ -47,15 +48,20 @@ type ImageWorkerResponse = PdfToImagesSuccess | ImagesToPdfSuccess | ImageWorker
 async function handlePdfToImages(
   pdfBytes: ArrayBuffer,
   pageNumbers: number[],
-  scale: number
+  scale: number,
+  password?: string
 ): Promise<{ pageNumber: number; pngBytes: ArrayBuffer }[]> {
-  const loadingTask = pdfjsLib.getDocument({
+  const docParams: Record<string, unknown> = {
     data: pdfBytes.slice(0),
     useWorkerFetch: false,
     useSystemFonts: false,
     disableAutoFetch: true,
     disableStream: true,
-  });
+  };
+  if (password) {
+    docParams.password = password;
+  }
+  const loadingTask = pdfjsLib.getDocument(docParams);
   const pdfDoc = await loadingTask.promise;
 
   if (!pdfDoc || pdfDoc.numPages <= 0) {
@@ -139,7 +145,12 @@ self.onmessage = async (event: MessageEvent<ImageWorkerRequest>) => {
   try {
     switch (msg.type) {
       case 'pdf-to-images': {
-        const images = await handlePdfToImages(msg.pdfBytes, msg.pageNumbers, msg.scale);
+        const images = await handlePdfToImages(
+          msg.pdfBytes,
+          msg.pageNumbers,
+          msg.scale,
+          msg.password
+        );
         self.postMessage({
           id: msg.id,
           type: 'success-images',

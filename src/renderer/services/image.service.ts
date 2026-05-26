@@ -1,5 +1,11 @@
 type ImageRequestParams =
-  | { type: 'pdf-to-images'; pdfBytes: ArrayBuffer; pageNumbers: number[]; scale: number }
+  | {
+      type: 'pdf-to-images';
+      pdfBytes: ArrayBuffer;
+      pageNumbers: number[];
+      scale: number;
+      password?: string;
+    }
   | { type: 'images-to-pdf'; images: { bytes: ArrayBuffer; mimeType: string }[] };
 
 interface PdfToImagesResult {
@@ -93,7 +99,8 @@ function sendRequest(worker: Worker, params: ImageRequestParams): Promise<ImageR
 export async function convertPdfToImages(
   pdfBytes: ArrayBuffer,
   pageNumbers: number[],
-  scale: number = 2
+  scale: number = 2,
+  password?: string
 ): Promise<PdfToImagesResult> {
   const worker = await getWorker();
   const result = await sendRequest(worker, {
@@ -101,6 +108,7 @@ export async function convertPdfToImages(
     pdfBytes,
     pageNumbers,
     scale,
+    ...(password ? { password } : {}),
   });
   if (result.type === 'error') throw new Error(result.message);
   if (result.type === 'success-pdf') throw new Error('Unexpected PDF result');
