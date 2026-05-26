@@ -23,6 +23,7 @@ interface UIState {
   activeDialog: DialogName | null;
   pageOpsDialogProps: Record<string, unknown>;
   dialogProps: Record<string, unknown>;
+  toastMessage: string | null;
 
   setTheme: (theme: Theme) => void;
   toggleSidebar: () => void;
@@ -32,7 +33,11 @@ interface UIState {
   closePageOpsDialog: () => void;
   openDialog: (name: DialogName, props?: Record<string, unknown>) => void;
   closeDialog: () => void;
+  showToast: (message: string) => void;
+  clearToast: () => void;
 }
+
+let toastTimer: ReturnType<typeof setTimeout> | null = null;
 
 export const useUIStore = create<UIState>((set) => ({
   theme: 'system',
@@ -43,6 +48,7 @@ export const useUIStore = create<UIState>((set) => ({
   activeDialog: null,
   pageOpsDialogProps: {},
   dialogProps: {},
+  toastMessage: null,
 
   setTheme: (theme) => set({ theme }),
 
@@ -72,11 +78,24 @@ export const useUIStore = create<UIState>((set) => ({
   openPageOpsDialog: (name, props) =>
     set({ activePageOpsDialog: name, pageOpsDialogProps: props ?? {} }),
 
-  closePageOpsDialog: () =>
-    set({ activePageOpsDialog: null, pageOpsDialogProps: {} }),
+  closePageOpsDialog: () => set({ activePageOpsDialog: null, pageOpsDialogProps: {} }),
 
-  openDialog: (name, props) =>
-    set({ activeDialog: name, dialogProps: props ?? {} }),
+  openDialog: (name, props) => set({ activeDialog: name, dialogProps: props ?? {} }),
 
   closeDialog: () => set({ activeDialog: null, dialogProps: {} }),
+
+  showToast: (message) => {
+    if (toastTimer) clearTimeout(toastTimer);
+    set({ toastMessage: message });
+    toastTimer = setTimeout(() => {
+      set({ toastMessage: null });
+      toastTimer = null;
+    }, 4000);
+  },
+
+  clearToast: () => {
+    if (toastTimer) clearTimeout(toastTimer);
+    toastTimer = null;
+    set({ toastMessage: null });
+  },
 }));

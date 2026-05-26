@@ -700,7 +700,11 @@ export function PdfViewer({ tab, onOpenAnother, onPdfDocumentLoaded, viewerRef }
         imageWidth: naturalW,
         imageHeight: naturalH,
       });
-      useAnnotationStore.getState().addAnnotation(tab.id, ann);
+      const store = useAnnotationStore.getState();
+      store.addAnnotation(tab.id, ann);
+      store.setActiveTool('select');
+      store.selectAnnotation(ann.id);
+      useUIStore.getState().showToast('Image placed. Drag to move, use corner handles to resize.');
     },
     [effectiveZoom, tab.id]
   );

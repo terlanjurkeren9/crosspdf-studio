@@ -4,6 +4,7 @@ import { useUIStore } from '../../stores/ui.store';
 import type { TabState } from '../../stores/document.store';
 import { TabBar } from './TabBar';
 import { Sidebar } from '../sidebar/Sidebar';
+import { Toast } from '../ui/Toast';
 
 interface AppShellProps {
   children: ReactNode;
@@ -87,6 +88,8 @@ export function AppShell({
           <span className="text-xs text-surface-400">Ready</span>
         </footer>
       )}
+
+      <Toast />
     </div>
   );
 }
