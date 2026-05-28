@@ -4,7 +4,7 @@ import { log } from './utils/logger';
 import { getDatabase, saveDatabase, closeDatabase } from './database/connection';
 import { registerIpcHandlers } from './ipc';
 
-const isDev = !app.isPackaged;
+const isDev = !app.isPackaged && !process.env.CROSSPDF_E2E;
 
 const PRELOAD_PATH = path.join(__dirname, '../preload/index.js');
 const RENDERER_DEV_URL = 'http://localhost:5173';
@@ -59,18 +59,22 @@ function createMainWindow(): BrowserWindow {
   return win;
 }
 
-// Single instance lock
-const gotLock = app.requestSingleInstanceLock();
+// Single instance lock — skip in E2E mode so multiple test processes can launch
+const isE2E = !!process.env.CROSSPDF_E2E;
 
-if (!gotLock) {
-  app.quit();
-} else {
-  app.on('second-instance', () => {
-    if (mainWindow) {
-      if (mainWindow.isMinimized()) mainWindow.restore();
-      mainWindow.focus();
-    }
-  });
+if (!isE2E) {
+  const gotLock = app.requestSingleInstanceLock();
+
+  if (!gotLock) {
+    app.quit();
+  } else {
+    app.on('second-instance', () => {
+      if (mainWindow) {
+        if (mainWindow.isMinimized()) mainWindow.restore();
+        mainWindow.focus();
+      }
+    });
+  }
 }
 
 app.whenReady().then(async () => {

@@ -31,3 +31,7 @@ logs/
 
 # Electron
 out/
+
+# E2E
+e2e/.fixtures/
+test-results/

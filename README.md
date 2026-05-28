@@ -16,7 +16,7 @@ Professional cross-platform PDF editor built with Electron + React + TypeScript.
 | State           | Zustand 5                     |
 | Validation      | Zod 4                         |
 | Database        | sql.js (WASM SQLite)          |
-| Testing         | Vitest 4                      |
+| Testing         | Vitest 4, Playwright 1.60     |
 | Linting         | ESLint 10, Prettier 3         |
 | Package Manager | pnpm                          |
 
@@ -44,18 +44,19 @@ pnpm build
 
 ## Scripts
 
-| Script              | Description                         |
-| ------------------- | ----------------------------------- |
-| `pnpm dev`          | Start Electron dev server with HMR  |
-| `pnpm build`        | Type check + production build       |
-| `pnpm typecheck`    | TypeScript type check only          |
-| `pnpm lint`         | ESLint check                        |
-| `pnpm test`         | Run Vitest test suite               |
-| `pnpm format`       | Format code with Prettier           |
-| `pnpm format:check` | Check formatting without writing    |
-| `pnpm package:mac`  | Build + package for macOS           |
-| `pnpm package:win`  | Build + package for Windows         |
-| `pnpm package:all`  | Build + package for macOS + Windows |
+| Script              | Description                                         |
+| ------------------- | --------------------------------------------------- |
+| `pnpm dev`          | Start Electron dev server with HMR                  |
+| `pnpm build`        | Type check + production build                       |
+| `pnpm typecheck`    | TypeScript type check only                          |
+| `pnpm lint`         | ESLint check                                        |
+| `pnpm test`         | Run Vitest unit/integration tests                   |
+| `pnpm e2e`          | Run Playwright E2E tests (needs `pnpm build` first) |
+| `pnpm format`       | Format code with Prettier                           |
+| `pnpm format:check` | Check formatting without writing                    |
+| `pnpm package:mac`  | Build + package for macOS                           |
+| `pnpm package:win`  | Build + package for Windows                         |
+| `pnpm package:all`  | Build + package for macOS + Windows                 |
 
 ## Project Structure
 
@@ -76,7 +77,8 @@ crosspdf-studio/
 │   │   ├── stores/     # Zustand stores
 │   │   └── hooks/      # React hooks
 │   └── shared/         # Shared types + IPC channels
-├── tests/              # Vitest test suite
+├── tests/              # Vitest unit/integration test suite
+├── e2e/                # Playwright E2E smoke tests
 ├── docs/               # Documentation + ADRs
 ├── .github/workflows/  # CI configuration
 └── resources/          # App icons + static assets
@@ -125,6 +127,26 @@ pnpm package:all   # Both platforms
 ```
 
 Code signing and notarization are deferred to Phase 5. See `electron-builder.yml` for configuration.
+
+## E2E Tests
+
+E2E tests use Playwright's Electron support to launch the built app and verify UI rendering.
+
+```bash
+# Build first (required)
+pnpm build
+
+# Run E2E tests
+pnpm e2e
+```
+
+E2E tests cover:
+
+- App launch and home screen render
+- Menu bar and toolbar UI elements
+- Preferences dialog open/close
+
+Configuration: `playwright.config.ts` | Tests: `e2e/*.spec.ts`
 
 ## Architecture Decisions
 
