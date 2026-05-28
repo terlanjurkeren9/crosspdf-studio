@@ -32,8 +32,8 @@ export function DeletePagesDialog({
             Are you sure you want to delete <strong>{pageLabel}</strong>?
           </p>
           <p className="text-xs text-surface-500">
-            This operation saves the result as a new file. The original document
-            will not be modified.
+            This operation saves the result as a new file. The original document will not be
+            modified.
           </p>
         </div>
       }

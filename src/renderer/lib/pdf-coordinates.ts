@@ -68,10 +68,7 @@ export function quadPointsToPdf(quadPoints: number[], zoom: number): number[] {
  * Get the bounding rect that encompasses all selection rectangles
  * relative to a container element, in container-local coordinates.
  */
-export function getSelectionBounds(
-  container: HTMLElement,
-  zoom: number
-): PdfRect | null {
+export function getSelectionBounds(container: HTMLElement, zoom: number): PdfRect | null {
   const selection = document.getSelection();
   if (!selection || selection.isCollapsed || selection.rangeCount === 0) {
     return null;
@@ -117,10 +114,7 @@ export function getSelectionBounds(
  * Each quad is [x1,y1,x2,y2,x3,y3,x4,y4] representing the four corners
  * of a selection segment rectangle.
  */
-export function getSelectionQuadPoints(
-  container: HTMLElement,
-  zoom: number
-): number[] | null {
+export function getSelectionQuadPoints(container: HTMLElement, zoom: number): number[] | null {
   const selection = document.getSelection();
   if (!selection || selection.isCollapsed || selection.rangeCount === 0) {
     return null;

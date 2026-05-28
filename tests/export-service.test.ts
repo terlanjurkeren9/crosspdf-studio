@@ -35,10 +35,9 @@ describe('formatOcrExport', () => {
   });
 
   it('handles empty text in results', () => {
-    const output = formatOcrExport(
-      [{ pageNumber: 1, text: '', confidence: 0 }],
-      { includePageNumbers: true }
-    );
+    const output = formatOcrExport([{ pageNumber: 1, text: '', confidence: 0 }], {
+      includePageNumbers: true,
+    });
     expect(output).toContain('--- Page 1 ---');
   });
 });

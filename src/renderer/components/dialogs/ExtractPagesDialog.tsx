@@ -21,9 +21,7 @@ export function ExtractPagesDialog({
   preSelectedPages,
 }: ExtractPagesDialogProps) {
   const [rangeInput, setRangeInput] = useState(
-    preSelectedPages && preSelectedPages.length > 0
-      ? preSelectedPages.join(', ')
-      : ''
+    preSelectedPages && preSelectedPages.length > 0 ? preSelectedPages.join(', ') : ''
   );
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -55,10 +53,7 @@ export function ExtractPagesDialog({
         return;
       }
 
-      await window.crosspdf.writeFile(
-        saveResult.filePath,
-        result.buffer as ArrayBuffer
-      );
+      await window.crosspdf.writeFile(saveResult.filePath, result.buffer as ArrayBuffer);
 
       const openNow = confirm(
         `Extracted ${pages.length} page(s) to:\n${saveResult.filePath}\n\nOpen the extracted document?`
@@ -101,11 +96,7 @@ export function ExtractPagesDialog({
             className="px-3 py-1.5 text-xs rounded text-white bg-brand-500 hover:bg-brand-600 disabled:opacity-30 flex items-center gap-2"
           >
             {loading && (
-              <svg
-                className="w-3 h-3 animate-spin"
-                fill="none"
-                viewBox="0 0 24 24"
-              >
+              <svg className="w-3 h-3 animate-spin" fill="none" viewBox="0 0 24 24">
                 <circle
                   className="opacity-25"
                   cx="12"
@@ -146,34 +137,32 @@ export function ExtractPagesDialog({
         </div>
 
         {selectedPages.length > 0 && (
-              <div className="flex flex-wrap gap-1">
-                {selectedPages.slice(0, 30).map((p) => (
-                  <span
-                    key={p}
-                    className="px-1.5 py-0.5 text-[11px] rounded bg-brand-50 dark:bg-brand-900/30 text-brand-700 dark:text-brand-300"
-                  >
-                    {p}
-                  </span>
-                ))}
-                {selectedPages.length > 30 && (
-                  <span className="px-1.5 py-0.5 text-[11px] text-surface-400">
-                    +{selectedPages.length - 30} more
-                  </span>
-                )}
-              </div>
+          <div className="flex flex-wrap gap-1">
+            {selectedPages.slice(0, 30).map((p) => (
+              <span
+                key={p}
+                className="px-1.5 py-0.5 text-[11px] rounded bg-brand-50 dark:bg-brand-900/30 text-brand-700 dark:text-brand-300"
+              >
+                {p}
+              </span>
+            ))}
+            {selectedPages.length > 30 && (
+              <span className="px-1.5 py-0.5 text-[11px] text-surface-400">
+                +{selectedPages.length - 30} more
+              </span>
             )}
+          </div>
+        )}
 
-            {selectedPages.length > 0 && (
-              <p className="text-xs text-surface-500">
-                {selectedPages.length} page{selectedPages.length !== 1 ? 's' : ''} selected.
-                Output: {extractOutputName(sourceFileName)}
-              </p>
-            )}
+        {selectedPages.length > 0 && (
+          <p className="text-xs text-surface-500">
+            {selectedPages.length} page{selectedPages.length !== 1 ? 's' : ''} selected. Output:{' '}
+            {extractOutputName(sourceFileName)}
+          </p>
+        )}
 
         {selectedPages.length === 0 && rangeInput.trim() && (
-          <p className="text-xs text-amber-500">
-            Enter valid page numbers or ranges.
-          </p>
+          <p className="text-xs text-amber-500">Enter valid page numbers or ranges.</p>
         )}
 
         {error && (

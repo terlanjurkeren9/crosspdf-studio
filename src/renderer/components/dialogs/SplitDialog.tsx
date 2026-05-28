@@ -55,9 +55,7 @@ export function SplitDialog({
       }
 
       const results = await splitPDF(readResult.data, {
-        ...(mode === 'count'
-          ? { pagesPerFile }
-          : { ranges: outputPlan }),
+        ...(mode === 'count' ? { pagesPerFile } : { ranges: outputPlan }),
       });
 
       // Show save dialog for first part to establish output directory
@@ -73,9 +71,14 @@ export function SplitDialog({
 
       // Derive output directory and base name pattern from user's first choice
       const firstPath = firstSave.filePath;
-      const dir = firstPath.slice(0, firstPath.lastIndexOf('/') + 1) || firstPath.slice(0, firstPath.lastIndexOf('\\') + 1);
+      const dir =
+        firstPath.slice(0, firstPath.lastIndexOf('/') + 1) ||
+        firstPath.slice(0, firstPath.lastIndexOf('\\') + 1);
       const firstPathBase = firstPath.slice(
-        (dir || firstPath.slice(0, Math.max(firstPath.lastIndexOf('/'), firstPath.lastIndexOf('\\')) + 1)).length
+        (
+          dir ||
+          firstPath.slice(0, Math.max(firstPath.lastIndexOf('/'), firstPath.lastIndexOf('\\')) + 1)
+        ).length
       );
 
       // Write first part
@@ -99,7 +102,7 @@ export function SplitDialog({
       const dirInfo = dir ? ` in:\n${dir}` : '';
       alert(
         `Split complete. ${successCount} file(s) saved${dirInfo}.\n\n` +
-        `Naming pattern: ${sourceFileName}-part-N.pdf`
+          `Naming pattern: ${sourceFileName}-part-N.pdf`
       );
 
       onClose();
@@ -132,11 +135,7 @@ export function SplitDialog({
             className="px-3 py-1.5 text-xs rounded text-white bg-brand-500 hover:bg-brand-600 disabled:opacity-30 flex items-center gap-2"
           >
             {loading && (
-              <svg
-                className="w-3 h-3 animate-spin"
-                fill="none"
-                viewBox="0 0 24 24"
-              >
+              <svg className="w-3 h-3 animate-spin" fill="none" viewBox="0 0 24 24">
                 <circle
                   className="opacity-25"
                   cx="12"
@@ -198,9 +197,7 @@ export function SplitDialog({
               min={1}
               max={totalPages}
               value={pagesPerFile}
-              onChange={(e) =>
-                setPagesPerFile(Math.max(1, parseInt(e.target.value, 10) || 1))
-              }
+              onChange={(e) => setPagesPerFile(Math.max(1, parseInt(e.target.value, 10) || 1))}
               className="w-20 h-7 text-xs text-center rounded border border-surface-300 dark:border-surface-600 bg-white dark:bg-surface-800 text-surface-900 dark:text-surface-100 outline-none focus:border-brand-400"
             />
           </div>
@@ -229,15 +226,11 @@ export function SplitDialog({
                 key={i}
                 className="flex items-center gap-2 px-3 py-1.5 text-xs border-b border-surface-100 dark:border-surface-800 last:border-b-0"
               >
-                <span className="text-surface-400 w-5 shrink-0 tabular-nums">
-                  {i + 1}
-                </span>
+                <span className="text-surface-400 w-5 shrink-0 tabular-nums">{i + 1}</span>
                 <span className="text-surface-500 truncate font-mono text-[11px]">
                   {splitOutputName(sourceFileName, i)}
                 </span>
-                <span className="text-surface-400 shrink-0 ml-auto">
-                  {chunk.length} p.
-                </span>
+                <span className="text-surface-400 shrink-0 ml-auto">{chunk.length} p.</span>
               </div>
             ))}
           </div>
@@ -250,9 +243,7 @@ export function SplitDialog({
         )}
 
         {totalOutputFiles === 0 && mode === 'ranges' && rangesInput.trim() && (
-          <p className="text-xs text-amber-500">
-            Enter valid page ranges separated by commas.
-          </p>
+          <p className="text-xs text-amber-500">Enter valid page ranges separated by commas.</p>
         )}
 
         {error && (

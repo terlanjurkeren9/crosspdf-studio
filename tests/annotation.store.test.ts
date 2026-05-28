@@ -101,7 +101,9 @@ describe('Annotation Store', () => {
         quadPoints: [],
       });
       useAnnotationStore.getState().addAnnotation('tab1', ann);
-      useAnnotationStore.getState().updateAnnotation('tab1', ann.id, { color: '#000000' } as Partial<Annotation>);
+      useAnnotationStore
+        .getState()
+        .updateAnnotation('tab1', ann.id, { color: '#000000' } as Partial<Annotation>);
 
       const updated = useAnnotationStore.getState().getAnnotationsForTab('tab1')[0];
       expect(updated.color).toBe('#000000');

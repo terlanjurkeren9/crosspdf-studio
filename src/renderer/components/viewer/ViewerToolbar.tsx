@@ -77,10 +77,6 @@ interface ViewerToolbarProps {
   onOcr?: () => void;
   onForms?: () => void;
   onPassword?: () => void;
-  onRedactionApply?: () => void;
-  hasRedactions?: boolean;
-  onExportWithImages?: () => void;
-  hasStamps?: boolean;
   onPdfToImages?: () => void;
   onImagesToPdf?: () => void;
 }
@@ -142,10 +138,6 @@ export function ViewerToolbar({
   onOcr,
   onForms,
   onPassword,
-  onRedactionApply,
-  hasRedactions = false,
-  onExportWithImages,
-  hasStamps = false,
   onPdfToImages,
   onImagesToPdf,
 }: ViewerToolbarProps) {
@@ -279,28 +271,6 @@ export function ViewerToolbar({
           <IconButton label="Images to PDF" onClick={onImagesToPdf}>
             <Images className="h-4 w-4" />
           </IconButton>
-        )}
-        {onRedactionApply && hasRedactions && (
-          <button
-            type="button"
-            onClick={onRedactionApply}
-            disabled={disabled}
-            className="h-7 rounded-lg bg-coral-500 px-2.5 text-xs font-semibold text-white shadow-sm shadow-coral-900/10 hover:bg-coral-600 active:bg-coral-700 disabled:opacity-40 transition-colors"
-            title="Apply Redactions"
-          >
-            Apply Redact
-          </button>
-        )}
-        {onExportWithImages && hasStamps && (
-          <button
-            type="button"
-            onClick={onExportWithImages}
-            disabled={disabled}
-            className="h-7 rounded-lg bg-teal-500 px-2.5 text-xs font-semibold text-white shadow-sm shadow-teal-900/10 hover:bg-teal-600 active:bg-teal-700 disabled:opacity-40 transition-colors"
-            title="Export PDF with Images"
-          >
-            Export Images
-          </button>
         )}
       </ToolbarGroup>
 

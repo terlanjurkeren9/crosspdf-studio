@@ -84,8 +84,8 @@ export function PasswordDialog({
     >
       <div className="space-y-3">
         <p className="text-sm text-surface-600 dark:text-surface-400">
-          <strong>{fileName}</strong> is password-protected. Enter the password to open
-          this document.
+          <strong>{fileName}</strong> is password-protected. Enter the password to open this
+          document.
         </p>
 
         <div>
@@ -115,8 +115,8 @@ export function PasswordDialog({
         )}
 
         <p className="text-xs text-surface-400">
-          The password is not stored or logged. You will need to enter it again when
-          reopening this document.
+          The password is not stored or logged. You will need to enter it again when reopening this
+          document.
         </p>
       </div>
     </Dialog>

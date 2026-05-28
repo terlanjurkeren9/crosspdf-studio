@@ -102,16 +102,10 @@ describe('pdf-coordinates', () => {
     });
 
     it('handles multiple quads', () => {
-      const quads = [
-        0, 0, 10, 0, 10, 10, 0, 10,
-        10, 0, 20, 0, 20, 10, 10, 10,
-      ];
+      const quads = [0, 0, 10, 0, 10, 10, 0, 10, 10, 0, 20, 0, 20, 10, 10, 10];
       const result = quadPointsToPixel(quads, 0.5);
       expect(result.length).toBe(16);
-      expect(result).toEqual([
-        0, 0, 5, 0, 5, 5, 0, 5,
-        5, 0, 10, 0, 10, 5, 5, 5,
-      ]);
+      expect(result).toEqual([0, 0, 5, 0, 5, 5, 0, 5, 5, 0, 10, 0, 10, 5, 5, 5]);
     });
   });
 

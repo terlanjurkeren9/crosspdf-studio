@@ -13,6 +13,7 @@
     "typecheck": "tsc -b --noEmit",
     "test": "vitest run",
     "e2e": "playwright test",
+    "perf:baseline": "npx tsx scripts/perf-baseline.ts",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "package:mac": "pnpm build && electron-builder --mac",

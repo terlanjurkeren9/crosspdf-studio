@@ -316,9 +316,13 @@ async function handleEmbedStamps(source: ArrayBuffer, stamps: StampInput[]): Pro
       continue;
     }
 
+    // Convert from screen coords (top-left origin) to PDF coords (bottom-left origin)
+    const { height: pageHeight } = page.getSize();
+    const pdfY = pageHeight - stamp.rect.y - stamp.rect.height;
+
     page.drawImage(image, {
       x: stamp.rect.x,
-      y: stamp.rect.y,
+      y: pdfY,
       width: stamp.rect.width,
       height: stamp.rect.height,
       opacity: stamp.opacity,

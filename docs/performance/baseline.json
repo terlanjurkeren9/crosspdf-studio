@@ -1,0 +1,59 @@
+{
+  "timestamp": "2026-05-28T16:10:57.422Z",
+  "platform": "darwin",
+  "arch": "arm64",
+  "timings": [
+    {
+      "label": "app-launch",
+      "durationMs": 445
+    },
+    {
+      "label": "pdf-open-first-render",
+      "durationMs": 135
+    },
+    {
+      "label": "page-navigation-avg-4x",
+      "durationMs": 27
+    },
+    {
+      "label": "continuous-mode-switch",
+      "durationMs": 57
+    },
+    {
+      "label": "zoom-in-2x",
+      "durationMs": 278
+    }
+  ],
+  "memory": [
+    {
+      "label": "after-launch",
+      "usedJSHeapSize": 10000000,
+      "totalJSHeapSize": 10000000,
+      "jsHeapSizeLimit": 3760000000
+    },
+    {
+      "label": "after-pdf-open",
+      "usedJSHeapSize": 10000000,
+      "totalJSHeapSize": 10000000,
+      "jsHeapSizeLimit": 3760000000
+    },
+    {
+      "label": "after-page-navigation",
+      "usedJSHeapSize": 10000000,
+      "totalJSHeapSize": 10000000,
+      "jsHeapSizeLimit": 3760000000
+    },
+    {
+      "label": "after-continuous-scroll",
+      "usedJSHeapSize": 10000000,
+      "totalJSHeapSize": 10000000,
+      "jsHeapSizeLimit": 3760000000
+    },
+    {
+      "label": "after-zoom-in",
+      "usedJSHeapSize": 10000000,
+      "totalJSHeapSize": 10000000,
+      "jsHeapSizeLimit": 3760000000
+    }
+  ]
+}

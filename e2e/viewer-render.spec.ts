@@ -152,8 +152,11 @@ test.describe('PDF viewer', () => {
 
   // ── Search panel ──────────────────────────────────────────────
 
-  test('search panel opens via Meta+F', async () => {
-    await page.keyboard.press('Meta+f');
+  test('search panel opens via platform search shortcut', async () => {
+    // darwin: Cmd+F (Meta), win32: Ctrl+F (Windows key intercepted by OS)
+    const isMac = process.platform === 'darwin';
+    const searchKey = isMac ? 'Meta+f' : 'Control+f';
+    await page.keyboard.press(searchKey);
     await page.waitForTimeout(500);
 
     const searchInput = page.locator('input[aria-label="Search text"]');

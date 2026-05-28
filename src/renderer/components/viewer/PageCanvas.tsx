@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { memo, useEffect, useRef, useState } from 'react';
 import type { PDFDocumentProxy } from 'pdfjs-dist';
 import type { PageRenderState } from '../../hooks/usePdfPage';
 import { usePdfPage } from '../../hooks/usePdfPage';
@@ -40,7 +40,7 @@ interface PageCanvasProps {
   ) => void;
 }
 
-export function PageCanvas({
+const PageCanvasInner = memo(function PageCanvas({
   pdfDocument,
   pageNumber,
   zoom,
@@ -171,4 +171,7 @@ export function PageCanvas({
       )}
     </div>
   );
-}
+});
+PageCanvasInner.displayName = 'PageCanvas';
+
+export { PageCanvasInner as PageCanvas };

@@ -44,19 +44,20 @@ pnpm build
 
 ## Scripts
 
-| Script              | Description                                         |
-| ------------------- | --------------------------------------------------- |
-| `pnpm dev`          | Start Electron dev server with HMR                  |
-| `pnpm build`        | Type check + production build                       |
-| `pnpm typecheck`    | TypeScript type check only                          |
-| `pnpm lint`         | ESLint check                                        |
-| `pnpm test`         | Run Vitest unit/integration tests                   |
-| `pnpm e2e`          | Run Playwright E2E tests (needs `pnpm build` first) |
-| `pnpm format`       | Format code with Prettier                           |
-| `pnpm format:check` | Check formatting without writing                    |
-| `pnpm package:mac`  | Build + package for macOS                           |
-| `pnpm package:win`  | Build + package for Windows                         |
-| `pnpm package:all`  | Build + package for macOS + Windows                 |
+| Script               | Description                                         |
+| -------------------- | --------------------------------------------------- |
+| `pnpm dev`           | Start Electron dev server with HMR                  |
+| `pnpm build`         | Type check + production build                       |
+| `pnpm typecheck`     | TypeScript type check only                          |
+| `pnpm lint`          | ESLint check                                        |
+| `pnpm test`          | Run Vitest unit/integration tests                   |
+| `pnpm e2e`           | Run Playwright E2E tests (needs `pnpm build` first) |
+| `pnpm perf:baseline` | Collect performance baseline (needs `pnpm build`)   |
+| `pnpm format`        | Format code with Prettier                           |
+| `pnpm format:check`  | Check formatting without writing                    |
+| `pnpm package:mac`   | Build + package for macOS                           |
+| `pnpm package:win`   | Build + package for Windows                         |
+| `pnpm package:all`   | Build + package for macOS + Windows                 |
 
 ## Project Structure
 
@@ -145,8 +146,27 @@ E2E tests cover:
 - App launch and home screen render
 - Menu bar and toolbar UI elements
 - Preferences dialog open/close
+- PDF viewer render, page navigation, zoom, search
+
+Platform support: macOS and Windows (CI: `.github/workflows/e2e.yml`). Linux is not currently targeted for E2E.
 
 Configuration: `playwright.config.ts` | Tests: `e2e/*.spec.ts`
+
+## Performance Baseline
+
+Collect timing and memory metrics from a headless Electron launch using Playwright.
+
+```bash
+# Build first (required)
+pnpm build
+
+# Run performance baseline
+pnpm perf:baseline
+```
+
+Output: `docs/performance/baseline.json` + `docs/performance/baseline.md`
+
+Metrics collected: app launch, PDF open + first render, page navigation (avg 4×), continuous mode switch, zoom interaction, JS heap snapshots at each phase.
 
 ## Architecture Decisions
 

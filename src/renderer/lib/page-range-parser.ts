@@ -50,10 +50,7 @@ function parseRangeString(input: string): PageRange[] {
 /**
  * Expand PageRange objects into an array of page numbers.
  */
-export function rangesToPageNumbers(
-  ranges: PageRange[],
-  totalPages: number
-): number[] {
+export function rangesToPageNumbers(ranges: PageRange[], totalPages: number): number[] {
   const set = new Set<number>();
 
   for (const range of ranges) {
@@ -70,10 +67,7 @@ export function rangesToPageNumbers(
 /**
  * Validate page numbers against total pages.
  */
-export function validatePageNumbers(
-  pages: number[],
-  totalPages: number
-): ValidationResult {
+export function validatePageNumbers(pages: number[], totalPages: number): ValidationResult {
   const errors: string[] = [];
 
   if (pages.length === 0) {
@@ -88,9 +82,7 @@ export function validatePageNumbers(
   }
 
   if (pages.length >= totalPages) {
-    errors.push(
-      'Cannot operate on all pages — the document would be empty.'
-    );
+    errors.push('Cannot operate on all pages — the document would be empty.');
   }
 
   return { valid: errors.length === 0, errors };
@@ -99,10 +91,7 @@ export function validatePageNumbers(
 /**
  * Generate a split plan: array of page number arrays, one per output file.
  */
-export function buildSplitByCountPlan(
-  totalPages: number,
-  pagesPerFile: number
-): number[][] {
+export function buildSplitByCountPlan(totalPages: number, pagesPerFile: number): number[][] {
   const plan: number[][] = [];
   for (let start = 1; start <= totalPages; start += pagesPerFile) {
     const chunk: number[] = [];
@@ -118,10 +107,7 @@ export function buildSplitByCountPlan(
 /**
  * Generate a split plan from page ranges.
  */
-export function buildSplitByRangesPlan(
-  totalPages: number,
-  rangeInput: string
-): number[][] {
+export function buildSplitByRangesPlan(totalPages: number, rangeInput: string): number[][] {
   const ranges = parseRangeString(rangeInput);
   return ranges.map((r) => {
     const start = Math.max(1, r.start);
@@ -145,9 +131,7 @@ export function buildReorderPlan(
   const errors: string[] = [];
 
   if (newOrder.length !== totalPages) {
-    errors.push(
-      `Reorder plan must include exactly ${totalPages} pages, got ${newOrder.length}.`
-    );
+    errors.push(`Reorder plan must include exactly ${totalPages} pages, got ${newOrder.length}.`);
   }
 
   const seen = new Set<number>();
@@ -171,10 +155,7 @@ export function buildReorderPlan(
 /**
  * Get the output filename for split parts.
  */
-export function splitOutputName(
-  originalPath: string,
-  partIndex: number
-): string {
+export function splitOutputName(originalPath: string, partIndex: number): string {
   const dot = originalPath.lastIndexOf('.');
   const base = dot > 0 ? originalPath.slice(0, dot) : originalPath;
   const ext = dot > 0 ? originalPath.slice(dot) : '.pdf';

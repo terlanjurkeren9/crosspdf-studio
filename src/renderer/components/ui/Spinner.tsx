@@ -1,10 +1,4 @@
-export function Spinner({
-  className = '',
-  size,
-}: {
-  className?: string;
-  size?: 'sm' | 'md';
-}) {
+export function Spinner({ className = '', size }: { className?: string; size?: 'sm' | 'md' }) {
   const sizeClass = size === 'sm' ? 'h-4 w-4' : 'h-5 w-5';
   return (
     <svg

@@ -13,7 +13,10 @@ export async function saveAnnotationDraft(
   const json = JSON.stringify(annotations, null, 2);
   const encoder = new TextEncoder();
   const data = encoder.encode(json);
-  const arrayBuffer = data.buffer.slice(data.byteOffset, data.byteOffset + data.byteLength) as ArrayBuffer;
+  const arrayBuffer = data.buffer.slice(
+    data.byteOffset,
+    data.byteOffset + data.byteLength
+  ) as ArrayBuffer;
 
   try {
     await window.crosspdf.writeFile(sidecarPath(filePath), arrayBuffer);
@@ -22,9 +25,7 @@ export async function saveAnnotationDraft(
   }
 }
 
-export async function loadAnnotationDraft(
-  filePath: string
-): Promise<Annotation[] | null> {
+export async function loadAnnotationDraft(filePath: string): Promise<Annotation[] | null> {
   try {
     const result = await window.crosspdf.readFile(sidecarPath(filePath));
     if (!result.success || !result.data) return null;

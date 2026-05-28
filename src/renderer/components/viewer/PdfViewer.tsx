@@ -403,12 +403,15 @@ export function PdfViewer({ tab, onOpenAnother, onPdfDocumentLoaded, viewerRef }
   const handleViewModeChange = useCallback(
     (mode: ViewMode) => {
       if (mode !== viewMode) {
-        setRenderedPages(new Set());
+        // Seed with current page so continuous mode shows it immediately
+        const seed =
+          currentPage > 0 && currentPage <= numPages ? new Set([currentPage]) : new Set<number>();
+        setRenderedPages(seed);
         setPageDimsMap(new Map());
       }
       setViewMode(mode);
     },
-    [viewMode]
+    [viewMode, currentPage, numPages]
   );
 
   // ── Continuous mode helpers ──────────────────────────────────
@@ -999,16 +1002,37 @@ export function PdfViewer({ tab, onOpenAnother, onPdfDocumentLoaded, viewerRef }
         onOcr={handleOcr}
         onForms={handleForms}
         onPassword={handlePassword}
-        onRedactionApply={handleRedactionApply}
-        hasRedactions={hasRedactions}
-        onExportWithImages={handleExportWithImages}
-        hasStamps={hasStamps}
         onPdfToImages={handlePdfToImages}
         onImagesToPdf={handleImagesToPdf}
       />
 
       {/* Content area */}
-      <div ref={containerRef} className="flex-1 overflow-hidden">
+      <div ref={containerRef} className="flex-1 overflow-hidden relative">
+        {/* Floating action buttons — outside toolbar, overlaid on viewer */}
+        {docState.status === 'ready' && (
+          <div className="absolute bottom-4 right-4 z-50 flex flex-col gap-2">
+            {hasRedactions && (
+              <button
+                type="button"
+                onClick={handleRedactionApply}
+                className="rounded-xl bg-coral-500 px-4 py-2 text-xs font-semibold text-white shadow-lg shadow-coral-900/25 hover:bg-coral-600 active:bg-coral-700 transition-colors"
+                title="Apply Redactions"
+              >
+                Apply Redactions ({redactions.length})
+              </button>
+            )}
+            {hasStamps && (
+              <button
+                type="button"
+                onClick={handleExportWithImages}
+                className="rounded-xl bg-teal-500 px-4 py-2 text-xs font-semibold text-white shadow-lg shadow-teal-900/25 hover:bg-teal-600 active:bg-teal-700 transition-colors"
+                title="Export PDF with Images"
+              >
+                Export Images ({stamps.length})
+              </button>
+            )}
+          </div>
+        )}
         {docState.status === 'reading-file' && (
           <div className="h-full flex flex-col items-center justify-center gap-3">
             <Spinner />
