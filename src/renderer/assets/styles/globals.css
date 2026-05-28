@@ -1,32 +1,61 @@
 @import 'tailwindcss';
 
-@theme {
-  --color-brand-50: #fff1f2;
-  --color-brand-100: #ffe4e6;
-  --color-brand-200: #fecdd3;
-  --color-brand-300: #fda4af;
-  --color-brand-400: #fb7185;
-  --color-brand-500: #ef4444;
-  --color-brand-600: #dc2626;
-  --color-brand-700: #b91c1c;
-  --color-brand-800: #991b1b;
-  --color-brand-900: #7f1d1d;
-  --color-brand-950: #450a0a;
+/* ── Design Tokens: CrossPDF Studio ────────────────────────── */
 
-  --color-surface-50: #fafafa;
-  --color-surface-100: #f4f4f5;
-  --color-surface-200: #e4e4e7;
-  --color-surface-300: #d4d4d8;
-  --color-surface-400: #a1a1aa;
-  --color-surface-500: #71717a;
-  --color-surface-600: #52525b;
-  --color-surface-700: #3f3f46;
-  --color-surface-800: #27272a;
-  --color-surface-900: #18181b;
-  --color-surface-950: #09090b;
+@theme {
+  /* Primary: cobalt blue #2563EB */
+  --color-brand-50: #eff6ff;
+  --color-brand-100: #dbeafe;
+  --color-brand-200: #bfdbfe;
+  --color-brand-300: #93c5fd;
+  --color-brand-400: #60a5fa;
+  --color-brand-500: #3b82f6;
+  --color-brand-600: #2563eb;
+  --color-brand-700: #1d4ed8;
+  --color-brand-800: #1e40af;
+  --color-brand-900: #1e3a8a;
+  --color-brand-950: #172554;
+
+  /* Secondary: teal #14B8A6 */
+  --color-teal-50: #f0fdfa;
+  --color-teal-100: #ccfbf1;
+  --color-teal-200: #99f6e4;
+  --color-teal-300: #5eead4;
+  --color-teal-400: #2dd4bf;
+  --color-teal-500: #14b8a6;
+  --color-teal-600: #0d9488;
+  --color-teal-700: #0f766e;
+  --color-teal-800: #115e59;
+  --color-teal-900: #134e4a;
+
+  /* Accent: coral #FF6B6B */
+  --color-coral-50: #fff5f5;
+  --color-coral-100: #ffe3e3;
+  --color-coral-200: #ffc9c9;
+  --color-coral-300: #ffa8a8;
+  --color-coral-400: #ff8787;
+  --color-coral-500: #ff6b6b;
+  --color-coral-600: #fa5252;
+  --color-coral-700: #e03131;
+  --color-coral-800: #c92a2a;
+
+  /* Neutral / Surface (slate-based) */
+  --color-surface-50: #f8fafc;
+  --color-surface-100: #f1f5f9;
+  --color-surface-200: #e2e8f0;
+  --color-surface-300: #cbd5e1;
+  --color-surface-400: #94a3b8;
+  --color-surface-500: #64748b;
+  --color-surface-600: #475569;
+  --color-surface-700: #334155;
+  --color-surface-800: #1e293b;
+  --color-surface-900: #0f172a;
+  --color-surface-950: #020617;
 }
 
 @custom-variant dark (&:where(.dark, .dark *));
+
+/* ── Base ───────────────────────────────────────────────────── */
 
 html,
 body,
@@ -42,9 +71,11 @@ body,
     BlinkMacSystemFont,
     'Segoe UI',
     sans-serif;
-  color: #27272a;
-  background: #18181b;
-  letter-spacing: 0;
+  color: #1e293b;
+  background: #f8fafc;
+  letter-spacing: -0.01em;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
 button,
@@ -62,14 +93,16 @@ button:not(:disabled) {
   cursor: pointer;
 }
 
+/* ── Scrollbar ──────────────────────────────────────────────── */
+
 * {
   scrollbar-width: thin;
-  scrollbar-color: #a1a1aa transparent;
+  scrollbar-color: #cbd5e1 transparent;
 }
 
 *::-webkit-scrollbar {
-  width: 10px;
-  height: 10px;
+  width: 8px;
+  height: 8px;
 }
 
 *::-webkit-scrollbar-track {
@@ -77,43 +110,55 @@ button:not(:disabled) {
 }
 
 *::-webkit-scrollbar-thumb {
-  background: #c4c4cc;
-  border: 2px solid transparent;
+  background: #cbd5e1;
   border-radius: 999px;
+  border: 2px solid transparent;
   background-clip: padding-box;
+}
+
+*::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
 }
 
 .dark *::-webkit-scrollbar-thumb {
-  background: #52525b;
-  border: 2px solid transparent;
-  background-clip: padding-box;
+  background: #334155;
+}
+
+.dark *::-webkit-scrollbar-thumb:hover {
+  background: #475569;
 }
 
 input[type='range'] {
-  accent-color: #dc2626;
+  accent-color: #2563eb;
 }
+
+/* ── PDF Workspace Background ───────────────────────────────── */
 
 .pdf-workspace {
   background:
-    radial-gradient(circle at top left, rgb(255 255 255 / 0.32), transparent 26rem), #d9d9de;
+    radial-gradient(ellipse at 50% 0%, rgb(148 163 184 / 0.12), transparent 28rem), #e2e8f0;
 }
 
 .dark .pdf-workspace {
   background:
-    radial-gradient(circle at top left, rgb(255 255 255 / 0.045), transparent 28rem), #202024;
+    radial-gradient(ellipse at 50% 0%, rgb(148 163 184 / 0.06), transparent 28rem), #0f172a;
+}
+
+/* ── PDF Page Shadow ────────────────────────────────────────── */
+
+.pdf-page-shadow {
+  box-shadow:
+    0 1px 3px rgb(0 0 0 / 0.06),
+    0 4px 12px rgb(0 0 0 / 0.08);
+}
+
+.dark .pdf-page-shadow {
+  box-shadow:
+    0 1px 3px rgb(0 0 0 / 0.3),
+    0 4px 16px rgb(0 0 0 / 0.4);
 }
 
 /* ── PDF Text Layer ─────────────────────────────────────────── */
-
-/* PDF.js TextLayer creates <span> children with inline styles:
-   - left: X%, top: Y% (percentage positioning)
-   - --font-height (used for font-size calculation)
-   - --scale-x, --rotate (used for transform)
-   - fontFamily
-   The container gets:
-   - --min-font-size (inline from TextLayer constructor)
-   - width/height via calc(var(--total-scale-factor) * pageWidth)
-*/
 
 .textLayer {
   position: absolute;
@@ -177,19 +222,19 @@ input[type='range'] {
 }
 
 .textLayer ::selection {
-  background: rgba(0 0 255 / 0.25);
-  background: color-mix(in srgb, AccentColor, transparent 75%);
+  background: rgb(37 99 235 / 0.2);
 }
 
 .textLayer ::-moz-selection {
-  background: rgba(0 0 255 / 0.25);
-  background: color-mix(in srgb, AccentColor, transparent 75%);
+  background: rgb(37 99 235 / 0.2);
 }
 
 .textLayer br::selection,
 .textLayer br::-moz-selection {
   background: transparent;
 }
+
+/* ── Animations ─────────────────────────────────────────────── */
 
 @keyframes toast-in {
   from {
@@ -204,4 +249,32 @@ input[type='range'] {
 
 .animate-toast-in {
   animation: toast-in 0.2s ease-out;
+}
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.animate-fade-in {
+  animation: fade-in 0.15s ease-out;
+}
+
+@keyframes slide-down {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-slide-down {
+  animation: slide-down 0.12s ease-out;
 }

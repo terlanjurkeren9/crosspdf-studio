@@ -97,7 +97,7 @@ const ANNOTATION_TOOLS: {
   { tool: 'sticky-note', label: 'Sticky Note', icon: StickyNote },
   { tool: 'free-text', label: 'Add Text', icon: Type },
   { tool: 'stamp', label: 'Add Image', icon: ImagePlus },
-  { tool: 'redaction', label: 'Mark Redaction', icon: ShieldOff },
+  { tool: 'redaction', label: 'Redaction', icon: ShieldOff },
 ];
 
 const FIT_OPTIONS: { value: FitMode; label: string; title: string }[] = [
@@ -162,7 +162,8 @@ export function ViewerToolbar({
   const canNext = currentPage >= numPages || disabled;
 
   return (
-    <div className="flex h-12 shrink-0 select-none items-center gap-2 overflow-x-auto border-b border-surface-200 bg-white px-2 dark:border-surface-800 dark:bg-surface-950">
+    <div className="flex h-11 shrink-0 select-none items-center gap-2 overflow-x-auto border-b border-surface-200 bg-white px-2.5 dark:border-surface-700 dark:bg-surface-900">
+      {/* File */}
       <ToolbarGroup label="File">
         <IconButton label="Close document" onClick={onClose} disabled={disabled && numPages === 0}>
           <X className="h-4 w-4" />
@@ -171,13 +172,14 @@ export function ViewerToolbar({
           <FolderOpen className="h-4 w-4" />
         </IconButton>
         <span
-          className="max-w-[180px] truncate px-1 text-xs font-medium text-surface-600 dark:text-surface-300"
+          className="max-w-[160px] truncate px-1 text-xs font-medium text-surface-600 dark:text-surface-300"
           title={fileName}
         >
           {fileName}
         </span>
       </ToolbarGroup>
 
+      {/* View */}
       <ToolbarGroup label="View">
         <SegmentedControl
           value={viewMode}
@@ -196,6 +198,7 @@ export function ViewerToolbar({
         />
       </ToolbarGroup>
 
+      {/* Annotate */}
       <ToolbarGroup label="Annotate">
         {ANNOTATION_TOOLS.map(({ tool, label, icon: Icon }) => (
           <IconButton
@@ -211,6 +214,7 @@ export function ViewerToolbar({
         ))}
       </ToolbarGroup>
 
+      {/* Pages */}
       <ToolbarGroup label="Pages">
         {onDeletePage && (
           <IconButton label="Delete current page" onClick={onDeletePage} disabled={disabled} danger>
@@ -218,12 +222,12 @@ export function ViewerToolbar({
           </IconButton>
         )}
         {onRotateCCW && (
-          <IconButton label="Rotate counter-clockwise" onClick={onRotateCCW} disabled={disabled}>
+          <IconButton label="Rotate left" onClick={onRotateCCW} disabled={disabled}>
             <RotateCcw className="h-4 w-4" />
           </IconButton>
         )}
         {onRotateCW && (
-          <IconButton label="Rotate clockwise" onClick={onRotateCW} disabled={disabled}>
+          <IconButton label="Rotate right" onClick={onRotateCW} disabled={disabled}>
             <RotateCw className="h-4 w-4" />
           </IconButton>
         )}
@@ -249,7 +253,8 @@ export function ViewerToolbar({
         )}
       </ToolbarGroup>
 
-      <ToolbarGroup label="Convert and secure">
+      {/* Convert & Secure */}
+      <ToolbarGroup label="Convert & Secure">
         {onOcr && (
           <IconButton label="OCR" onClick={onOcr} disabled={disabled}>
             <ScanText className="h-4 w-4" />
@@ -280,7 +285,7 @@ export function ViewerToolbar({
             type="button"
             onClick={onRedactionApply}
             disabled={disabled}
-            className="h-7 rounded-md bg-red-600 px-2.5 text-xs font-semibold text-white shadow-sm shadow-red-900/10 hover:bg-red-700 disabled:opacity-35"
+            className="h-7 rounded-lg bg-coral-500 px-2.5 text-xs font-semibold text-white shadow-sm shadow-coral-900/10 hover:bg-coral-600 active:bg-coral-700 disabled:opacity-40 transition-colors"
             title="Apply Redactions"
           >
             Apply Redact
@@ -291,7 +296,7 @@ export function ViewerToolbar({
             type="button"
             onClick={onExportWithImages}
             disabled={disabled}
-            className="h-7 rounded-md bg-emerald-600 px-2.5 text-xs font-semibold text-white shadow-sm shadow-emerald-900/10 hover:bg-emerald-700 disabled:opacity-35"
+            className="h-7 rounded-lg bg-teal-500 px-2.5 text-xs font-semibold text-white shadow-sm shadow-teal-900/10 hover:bg-teal-600 active:bg-teal-700 disabled:opacity-40 transition-colors"
             title="Export PDF with Images"
           >
             Export Images
@@ -301,6 +306,7 @@ export function ViewerToolbar({
 
       <div className="flex-1" />
 
+      {/* Navigation */}
       <ToolbarGroup label="Navigation" className="border-r-0 pr-0">
         <IconButton label="First page" onClick={onFirstPage} disabled={canPrev}>
           <ChevronsLeft className="h-4 w-4" />
@@ -318,10 +324,10 @@ export function ViewerToolbar({
             onFocus={onPageInputFocus}
             onBlur={onPageInputBlur}
             disabled={disabled}
-            className="h-7 w-12 rounded-md border border-surface-300 bg-white px-1 text-center text-xs tabular-nums text-surface-900 outline-none focus:border-brand-500 dark:border-surface-700 dark:bg-surface-900 dark:text-surface-100"
+            className="h-7 w-12 rounded-lg border border-surface-200 bg-white px-1 text-center text-xs tabular-nums text-surface-700 outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500/20 dark:border-surface-600 dark:bg-surface-800 dark:text-surface-200"
             aria-label="Page number"
           />
-          <span className="w-10 text-xs tabular-nums text-surface-500">/ {numPages}</span>
+          <span className="w-10 text-xs tabular-nums text-surface-400">/ {numPages}</span>
         </div>
         <IconButton label="Next page" onClick={onNextPage} disabled={canNext}>
           <ChevronRight className="h-4 w-4" />
@@ -331,6 +337,7 @@ export function ViewerToolbar({
         </IconButton>
       </ToolbarGroup>
 
+      {/* Zoom */}
       <ToolbarGroup label="Zoom" className="border-r-0 pr-0">
         <IconButton label="Zoom out" onClick={onZoomOut} disabled={zoom <= ZOOM_MIN || disabled}>
           <ZoomOut className="h-4 w-4" />
@@ -346,7 +353,7 @@ export function ViewerToolbar({
           className="h-1 w-20 disabled:opacity-35"
           aria-label="Zoom slider"
         />
-        <span className="w-11 text-center text-xs tabular-nums text-surface-600 dark:text-surface-300">
+        <span className="w-11 text-center text-xs tabular-nums text-surface-500 dark:text-surface-400">
           {formatZoomPercent(zoom)}
         </span>
         <IconButton label="Zoom in" onClick={onZoomIn} disabled={zoom >= ZOOM_MAX || disabled}>

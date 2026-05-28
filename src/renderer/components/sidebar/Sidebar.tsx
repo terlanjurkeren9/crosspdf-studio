@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react';
 import type { PDFDocumentProxy } from 'pdfjs-dist';
-import { ChevronRight, MessageSquareText, Search, Rows3 } from 'lucide-react';
+import { ChevronRight, MessageSquareText, Search, LayoutGrid } from 'lucide-react';
 import { useUIStore } from '../../stores/ui.store';
 import { ThumbnailPanel } from './ThumbnailPanel';
 import { SearchPanel } from './SearchPanel';
@@ -17,8 +17,8 @@ interface SidebarProps {
   activeTabId?: string | null;
 }
 
-const PANELS: Record<PanelType, { label: string; icon: typeof Rows3 }> = {
-  thumbnails: { label: 'Thumbnails', icon: Rows3 },
+const PANELS: Record<PanelType, { label: string; icon: typeof LayoutGrid }> = {
+  thumbnails: { label: 'Pages', icon: LayoutGrid },
   search: { label: 'Search', icon: Search },
   comments: { label: 'Comments', icon: MessageSquareText },
 };
@@ -38,10 +38,10 @@ function RailButton({
     <button
       type="button"
       onClick={onClick}
-      className={`flex h-9 w-9 items-center justify-center rounded-md transition-colors ${
+      className={`flex h-9 w-9 items-center justify-center rounded-lg transition-all duration-150 ${
         isActive
-          ? 'bg-brand-50 text-brand-700 ring-1 ring-brand-100 dark:bg-brand-950/60 dark:text-brand-300 dark:ring-brand-900'
-          : 'text-surface-500 hover:bg-surface-100 hover:text-surface-900 dark:text-surface-400 dark:hover:bg-surface-800 dark:hover:text-surface-100'
+          ? 'bg-brand-50 text-brand-600 ring-1 ring-brand-200 shadow-sm dark:bg-brand-950/60 dark:text-brand-400 dark:ring-brand-800'
+          : 'text-surface-400 hover:bg-surface-100 hover:text-surface-600 dark:text-surface-500 dark:hover:bg-surface-800 dark:hover:text-surface-300'
       }`}
       title={PANELS[panel].label}
       aria-label={PANELS[panel].label}
@@ -78,32 +78,34 @@ export function Sidebar({
         <button
           type="button"
           onClick={() => setSidebarPanel(lastPanelRef.current || 'thumbnails')}
-          className="absolute left-0 top-[90px] z-[90] flex h-8 w-7 items-center justify-center rounded-r-md border border-l-0 border-surface-200 bg-white text-surface-500 shadow-sm hover:text-surface-900 dark:border-surface-700 dark:bg-surface-900 dark:text-surface-400 dark:hover:text-surface-100"
+          className="absolute left-0 top-[104px] z-[90] flex h-8 w-6 items-center justify-center rounded-r-lg border border-l-0 border-surface-200 bg-white text-surface-400 shadow-sm hover:text-surface-600 dark:border-surface-700 dark:bg-surface-800 dark:hover:text-surface-300"
           title="Show sidebar"
           aria-label="Show sidebar"
         >
-          <ChevronRight className="h-4 w-4" />
+          <ChevronRight className="h-3.5 w-3.5" />
         </button>
       </aside>
     );
   }
 
   return (
-    <aside className="flex h-full shrink-0 border-r border-surface-200 bg-white dark:border-surface-800 dark:bg-surface-950">
-      <div className="flex w-12 flex-col items-center gap-1 border-r border-surface-200 px-1.5 py-2 dark:border-surface-800">
+    <aside className="flex h-full shrink-0 border-r border-surface-200 bg-white dark:border-surface-700 dark:bg-surface-900">
+      {/* Rail */}
+      <div className="flex w-11 flex-col items-center gap-1.5 border-r border-surface-200 px-1.5 py-3 dark:border-surface-700">
         {(Object.keys(PANELS) as PanelType[]).map((p) => (
           <RailButton key={p} panel={p} activePanel={panel} onClick={() => setSidebarPanel(p)} />
         ))}
         <div className="flex-1" />
       </div>
 
+      {/* Panel content */}
       {panel && (
         <div
-          className="flex h-full flex-col bg-surface-50 transition-[width] dark:bg-surface-950"
-          style={{ width: Math.max(220, sidebarWidth - 48) }}
+          className="flex h-full flex-col bg-surface-50/80 transition-[width] dark:bg-surface-900/80"
+          style={{ width: Math.max(220, sidebarWidth - 44) }}
         >
-          <div className="flex h-10 shrink-0 items-center border-b border-surface-200 px-3 dark:border-surface-800">
-            <h2 className="text-xs font-semibold uppercase tracking-wider text-surface-500">
+          <div className="flex h-10 shrink-0 items-center border-b border-surface-200 px-3.5 dark:border-surface-700">
+            <h2 className="text-[11px] font-semibold uppercase tracking-widest text-surface-400">
               {PANELS[panel].label}
             </h2>
           </div>
@@ -119,7 +121,9 @@ export function Sidebar({
               />
             )}
             {panel === 'thumbnails' && !pdfDocument && (
-              <div className="p-3 text-xs text-surface-500">Open a document to view pages.</div>
+              <div className="p-4 text-xs text-surface-400">
+                Open a document to view thumbnails.
+              </div>
             )}
 
             {panel === 'search' && (

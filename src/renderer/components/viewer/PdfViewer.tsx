@@ -26,7 +26,7 @@ import type {
 } from '../../types/annotation.types';
 import { isRedaction, isStamp } from '../../types/annotation.types';
 import { RedactionDrawLayer } from './RedactionDrawLayer';
-import { StampInteractionLayer } from './StampInteractionLayer';
+import { AnnotationInteractionLayer } from './AnnotationInteractionLayer';
 import { applyStamps } from '../../services/pdf-ops.service';
 import { screenPointToPdf } from '../../lib/pdf-coordinates';
 import { normalizeImageToSafeDataUrl } from '../../lib/image-normalize';
@@ -1099,18 +1099,17 @@ export function PdfViewer({ tab, onOpenAnother, onPdfDocumentLoaded, viewerRef }
                         active={activeTool === 'redaction'}
                         onRedactionDrawn={handleRedactionDrawn}
                       />
-                      <StampInteractionLayer
+                      <AnnotationInteractionLayer
                         zoom={effectiveZoom}
-                        stamps={annotationsForTab
-                          .filter((a): a is StampAnnotation => isStamp(a))
-                          .filter((s) => s.pageNumber === currentPage)}
+                        annotations={annotationsForTab.filter((a) => a.pageNumber === currentPage)}
                         selectedIds={selectedIds}
                         activeTool={activeTool}
                         onAnnotationClick={(id) => selectAnnotation(id)}
-                        onStampMoved={(id, rect) =>
+                        onAnnotationDoubleClick={(id) => handleAnnotationDoubleClick(id)}
+                        onAnnotationMoved={(id, rect) =>
                           updateAnnotation(tab.id, id, { rect } as Partial<Annotation>)
                         }
-                        onStampResized={(id, rect) =>
+                        onAnnotationResized={(id, rect) =>
                           updateAnnotation(tab.id, id, { rect } as Partial<Annotation>)
                         }
                       />
@@ -1155,10 +1154,10 @@ export function PdfViewer({ tab, onOpenAnother, onPdfDocumentLoaded, viewerRef }
               }
             }}
             onRedactionDrawn={handleRedactionDrawn}
-            onStampMoved={(id, rect) =>
+            onAnnotationMoved={(id, rect) =>
               updateAnnotation(tab.id, id, { rect } as Partial<Annotation>)
             }
-            onStampResized={(id, rect) =>
+            onAnnotationResized={(id, rect) =>
               updateAnnotation(tab.id, id, { rect } as Partial<Annotation>)
             }
           />

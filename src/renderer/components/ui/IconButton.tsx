@@ -16,17 +16,17 @@ export function IconButton({
   ...props
 }: IconButtonProps) {
   const activeClass = active
-    ? 'bg-brand-100 text-brand-700 ring-1 ring-brand-200 dark:bg-brand-950/70 dark:text-brand-300 dark:ring-brand-900'
+    ? 'bg-brand-50 text-brand-600 ring-1 ring-brand-200 hover:bg-brand-100 dark:bg-brand-950/60 dark:text-brand-400 dark:ring-brand-800'
     : danger
-      ? 'text-surface-500 hover:bg-red-50 hover:text-red-700 dark:text-surface-400 dark:hover:bg-red-950/40 dark:hover:text-red-300'
-      : 'text-surface-600 hover:bg-surface-200 hover:text-surface-950 dark:text-surface-300 dark:hover:bg-surface-800 dark:hover:text-surface-50';
+      ? 'text-surface-500 hover:bg-coral-50 hover:text-coral-600 dark:text-surface-400 dark:hover:bg-coral-950/30 dark:hover:text-coral-400'
+      : 'text-surface-500 hover:bg-surface-100 hover:text-surface-700 dark:text-surface-400 dark:hover:bg-surface-800 dark:hover:text-surface-200';
 
   return (
     <button
       type="button"
       aria-label={label}
       title={label}
-      className={`inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-md transition-colors disabled:cursor-default disabled:opacity-35 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-500 ${activeClass} ${className}`}
+      className={`inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg transition-colors disabled:cursor-default disabled:opacity-30 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-500 ${activeClass} ${className}`}
       {...props}
     >
       {children}

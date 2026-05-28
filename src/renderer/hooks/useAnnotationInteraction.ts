@@ -1,6 +1,10 @@
 import { useCallback, useRef } from 'react';
 import { useAnnotationStore, createAnnotation } from '../stores/annotation.store';
-import { getSelectionQuadPoints, getSelectionBounds, screenPointToPdf } from '../lib/pdf-coordinates';
+import {
+  getSelectionQuadPoints,
+  getSelectionBounds,
+  screenPointToPdf,
+} from '../lib/pdf-coordinates';
 import type { TextMarkupType } from '../types/annotation.types';
 
 export function useAnnotationInteraction(tabId: string) {
@@ -52,6 +56,9 @@ export function useAnnotationInteraction(tabId: string) {
           content: '',
         });
         addAnnotation(tabId, annotation);
+        const store = useAnnotationStore.getState();
+        store.setActiveTool('select');
+        store.selectAnnotation(annotation.id);
       } else if (activeTool === 'free-text') {
         const annotation = createAnnotation('free-text', pageNumber, {
           rect: { x: pdfPoint.x, y: pdfPoint.y, width: 150, height: 30 },
@@ -59,6 +66,9 @@ export function useAnnotationInteraction(tabId: string) {
           fontSize: 14,
         });
         addAnnotation(tabId, annotation);
+        const store = useAnnotationStore.getState();
+        store.setActiveTool('select');
+        store.selectAnnotation(annotation.id);
       }
     },
     [activeTool, tabId, addAnnotation]

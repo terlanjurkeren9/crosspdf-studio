@@ -26,12 +26,12 @@ interface PageListProps {
     pageNumber: number,
     rect: { x: number; y: number; width: number; height: number }
   ) => void;
-  // Stamp interaction
-  onStampMoved?: (
+  // Annotation interaction (move/resize for stamp, sticky-note, free-text)
+  onAnnotationMoved?: (
     id: string,
     rect: { x: number; y: number; width: number; height: number }
   ) => void;
-  onStampResized?: (
+  onAnnotationResized?: (
     id: string,
     rect: { x: number; y: number; width: number; height: number }
   ) => void;
@@ -55,8 +55,8 @@ export function PageList({
   onAnnotationDoubleClick,
   onPageClick,
   onRedactionDrawn,
-  onStampMoved,
-  onStampResized,
+  onAnnotationMoved,
+  onAnnotationResized,
 }: PageListProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const observerRef = useRef<IntersectionObserver | null>(null);
@@ -211,8 +211,8 @@ export function PageList({
                   onAnnotationDoubleClick={onAnnotationDoubleClick}
                   onPageClick={onPageClick}
                   onRedactionDrawn={onRedactionDrawn}
-                  onStampMoved={onStampMoved}
-                  onStampResized={onStampResized}
+                  onAnnotationMoved={onAnnotationMoved}
+                  onAnnotationResized={onAnnotationResized}
                 />
               ) : (
                 <div

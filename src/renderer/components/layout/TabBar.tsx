@@ -52,7 +52,7 @@ export function TabBar({ tabs, activeTabId, onOpenFile }: TabBarProps) {
   return (
     <div
       ref={tabBarRef}
-      className="flex h-9 shrink-0 select-none items-end gap-0 overflow-x-auto border-b border-surface-200 bg-surface-100 px-2 dark:border-surface-800 dark:bg-surface-900"
+      className="flex h-9 shrink-0 select-none items-end gap-0 overflow-x-auto border-b border-surface-200 bg-surface-50 px-2 dark:border-surface-700 dark:bg-surface-900"
       role="tablist"
       aria-label="Open documents"
     >
@@ -72,18 +72,20 @@ export function TabBar({ tabs, activeTabId, onOpenFile }: TabBarProps) {
                 setActiveTab(tab.id);
               }
             }}
-            className={`group mb-[-1px] flex h-8 max-w-[220px] shrink-0 cursor-pointer items-center gap-1.5 rounded-t-md border px-2.5 text-xs transition-colors ${
+            className={`group mb-[-1px] flex h-8 max-w-[220px] shrink-0 cursor-pointer items-center gap-1.5 rounded-t-lg border px-2.5 text-xs font-medium transition-colors ${
               isActive
-                ? 'border-surface-200 border-b-white bg-white text-surface-950 shadow-sm dark:border-surface-700 dark:border-b-surface-950 dark:bg-surface-950 dark:text-surface-50'
-                : 'border-transparent text-surface-500 hover:bg-surface-200/70 hover:text-surface-800 dark:text-surface-400 dark:hover:bg-surface-800/80 dark:hover:text-surface-100'
+                ? 'border-surface-200 border-b-white bg-white text-surface-800 dark:border-surface-700 dark:border-b-surface-900 dark:bg-surface-800 dark:text-surface-100'
+                : 'border-transparent text-surface-500 hover:bg-surface-200/60 hover:text-surface-700 dark:text-surface-400 dark:hover:bg-surface-700/60 dark:hover:text-surface-200'
             }`}
           >
-            <FileText className={`h-3.5 w-3.5 shrink-0 ${isActive ? 'text-brand-600' : ''}`} />
+            <FileText
+              className={`h-3.5 w-3.5 shrink-0 ${isActive ? 'text-brand-600 dark:text-brand-400' : ''}`}
+            />
             <span className="truncate">{tab.fileName}</span>
             <button
               type="button"
               onClick={(e) => handleCloseTab(e, tab.id)}
-              className={`ml-1 inline-flex h-4 w-4 shrink-0 items-center justify-center rounded-sm transition-opacity hover:bg-surface-200 dark:hover:bg-surface-700 ${
+              className={`ml-1 inline-flex h-4 w-4 shrink-0 items-center justify-center rounded transition-opacity hover:bg-surface-200 dark:hover:bg-surface-600 ${
                 isActive ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'
               }`}
               aria-label={`Close ${tab.fileName}`}
@@ -97,7 +99,7 @@ export function TabBar({ tabs, activeTabId, onOpenFile }: TabBarProps) {
       <button
         type="button"
         onClick={onOpenFile}
-        className="mb-1 ml-1 inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-md text-surface-500 hover:bg-surface-200 hover:text-surface-900 dark:text-surface-400 dark:hover:bg-surface-800 dark:hover:text-surface-100"
+        className="mb-1 ml-1 inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-lg text-surface-400 hover:bg-surface-200 hover:text-surface-600 dark:hover:bg-surface-700 dark:hover:text-surface-300"
         aria-label="Open new tab"
         title="Open new tab (Ctrl+O)"
       >

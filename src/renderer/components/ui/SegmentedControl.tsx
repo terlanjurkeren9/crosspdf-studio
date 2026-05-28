@@ -15,7 +15,7 @@ export function SegmentedControl<T extends string>({
 }: SegmentedControlProps<T>) {
   return (
     <div
-      className={`inline-flex h-7 items-center rounded-md border border-surface-200 bg-surface-100 p-0.5 dark:border-surface-700 dark:bg-surface-900 ${className}`}
+      className={`inline-flex h-8 items-center rounded-lg border border-surface-200 bg-surface-100 p-0.5 dark:border-surface-700 dark:bg-surface-800 ${className}`}
     >
       {options.map((option) => {
         const active = option.value === value;
@@ -26,10 +26,10 @@ export function SegmentedControl<T extends string>({
             disabled={disabled}
             onClick={() => onChange(option.value)}
             title={option.title ?? option.label}
-            className={`h-6 rounded px-2 text-xs font-medium transition-colors disabled:opacity-40 ${
+            className={`h-[26px] rounded-md px-2.5 text-xs font-medium transition-all duration-150 disabled:opacity-40 ${
               active
-                ? 'bg-white text-brand-700 shadow-sm dark:bg-surface-700 dark:text-brand-200'
-                : 'text-surface-500 hover:text-surface-900 dark:text-surface-400 dark:hover:text-surface-100'
+                ? 'bg-white text-brand-600 shadow-sm shadow-surface-900/5 dark:bg-surface-700 dark:text-brand-400'
+                : 'text-surface-500 hover:text-surface-700 dark:text-surface-400 dark:hover:text-surface-200'
             }`}
           >
             {option.label}
