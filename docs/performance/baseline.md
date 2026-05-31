@@ -1,17 +1,17 @@
 # CrossPDF Studio — Performance Baseline
 
-**Timestamp:** 2026-05-28T16:10:57.422Z
+**Timestamp:** 2026-05-28T18:19:59.350Z
 **Platform:** darwin (arm64)
 
 ## Timings
 
 | Phase                  | Duration (ms) |
 | ---------------------- | ------------: |
-| app-launch             |           445 |
-| pdf-open-first-render  |           135 |
-| page-navigation-avg-4x |            27 |
-| continuous-mode-switch |            57 |
-| zoom-in-2x             |           278 |
+| app-launch             |           505 |
+| pdf-open-first-render  |           140 |
+| page-navigation-avg-4x |            45 |
+| continuous-mode-switch |            88 |
+| zoom-in-2x             |           279 |
 
 ## Memory
 

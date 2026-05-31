@@ -1,27 +1,27 @@
 {
-  "timestamp": "2026-05-28T16:10:57.422Z",
+  "timestamp": "2026-05-28T18:19:59.350Z",
   "platform": "darwin",
   "arch": "arm64",
   "timings": [
     {
       "label": "app-launch",
-      "durationMs": 445
+      "durationMs": 505
     },
     {
       "label": "pdf-open-first-render",
-      "durationMs": 135
+      "durationMs": 140
     },
     {
       "label": "page-navigation-avg-4x",
-      "durationMs": 27
+      "durationMs": 45
     },
     {
       "label": "continuous-mode-switch",
-      "durationMs": 57
+      "durationMs": 88
     },
     {
       "label": "zoom-in-2x",
-      "durationMs": 278
+      "durationMs": 279
     }
   ],
   "memory": [
