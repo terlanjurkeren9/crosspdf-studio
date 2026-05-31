@@ -1,22 +1,129 @@
-# macOS Code Signing & Notarization
+# macOS Release Distribution
 
-Code signing and notarization for macOS builds. All flows are **env-gated** —
-unsigned local packaging works without Apple credentials.
+CrossPDF Studio distributes macOS builds via GitHub Releases. Two paths exist:
 
-## Quick reference
+| Path                           | Status                                         | Command                    |
+| ------------------------------ | ---------------------------------------------- | -------------------------- |
+| **Unsigned release**           | Working                                        | `pnpm package:mac:release` |
+| **Signed + notarized release** | Blocked — requires Apple Developer credentials | `pnpm package:mac:signed`  |
 
-| Scenario                   | Command                                                               |
-| -------------------------- | --------------------------------------------------------------------- |
-| Local unsigned build       | `pnpm package:mac:unsigned`                                           |
-| Local unsigned (dev debug) | `pnpm package:mac:dev`                                                |
-| Local unsigned (.app only) | `pnpm package:mac:dir` (fastest — skips DMG/ZIP)                      |
-| Local unsigned (ZIP only)  | `pnpm package:mac:zip` (reliable — skips hdiutil DMG)                 |
-| Signed + notarized build   | `pnpm package:mac:signed` (requires env vars)                         |
-| Verify an existing .app    | `bash scripts/sign-verify.sh "release/mac-arm64/CrossPDF Studio.app"` |
+---
 
-## Required secrets / environment variables
+## Unsigned Release (current path)
 
-### Code signing (mandatory for signed builds)
+Unsigned builds are the primary release path until Apple Developer credentials
+become available. The app runs on macOS but requires a one-time Gatekeeper bypass.
+
+### Build unsigned DMG + ZIP + metadata
+
+```bash
+pnpm package:mac:release
+```
+
+This single command:
+
+1. Builds the TypeScript + Vite production bundle
+2. Packages unsigned DMG + ZIP for arm64 (and x64 if configured)
+3. Generates `latest-mac.yml` for electron-updater
+4. Runs `verify-update-metadata.sh` to validate all artifacts
+
+Output in `release/`:
+
+```
+release/
+  ├── CrossPDF Studio-X.Y.Z-arm64.dmg        ← manual install
+  ├── CrossPDF Studio-X.Y.Z-arm64-mac.zip     ← auto-update asset
+  └── latest-mac.yml                           ← electron-updater metadata
+```
+
+### Verify metadata
+
+```bash
+bash scripts/verify-update-metadata.sh release
+```
+
+Checks `latest-mac.yml` exists, references a ZIP, the ZIP file matches the YAML
+`url` field, version is consistent, and `publish.provider: github` is set.
+
+### Verify signing state
+
+```bash
+bash scripts/verify-update-metadata.sh release     # metadata
+bash scripts/sign-verify.sh --unsigned "release/mac-arm64/CrossPDF Studio.app"
+```
+
+The `--unsigned` mode expects ad-hoc signature, Gatekeeper rejection, and no
+notarization ticket — all correct for unsigned builds.
+
+### Publish to GitHub
+
+```bash
+# Extract the YAML-referenced filename (hyphens, no spaces)
+YAML_ZIP=$(grep '^\s*url:' release/latest-mac.yml | head -1 | awk '{print $2}' | tr -d '"')
+
+# Copy with YAML-consistent name if needed
+cp "release/CrossPDF Studio-X.Y.Z-arm64-mac.zip" "release/$YAML_ZIP"
+
+gh release create vX.Y.Z \
+  "release/$YAML_ZIP" \
+  "release/CrossPDF Studio-X.Y.Z-arm64.dmg" \
+  "release/latest-mac.yml" \
+  --repo terlanjurkeren9/crosspdf-studio \
+  --title "vX.Y.Z" \
+  --notes "Release notes. ⚠️ Unsigned: right-click → Open to bypass Gatekeeper."
+```
+
+### Gatekeeper bypass (for users)
+
+macOS blocks unsigned apps by default. Users must:
+
+1. Right-click (or Control-click) the `.app` → **Open**
+2. Click **Open** in the security dialog
+3. The app launches normally on subsequent opens
+
+This applies to both the DMG install and the ZIP install. The same bypass is
+needed after an auto-update installs a new version.
+
+### Auto-update with unsigned builds
+
+`electron-updater` can detect and download updates from GitHub Releases without
+signing. The flow:
+
+```
+Help → Check for Updates
+  → GitHub API → latest-mac.yml → version comparison
+  → Download ZIP asset
+  → "Update downloaded. Restart to install."
+  → Quit & Install → relaunches with new version
+```
+
+**Limitation:** `electron-updater` verifies the code signature of the downloaded
+update on macOS. On unsigned builds, this verification fails. The download completes
+but the install step may fail silently or the relaunched app may be blocked by
+Gatekeeper. Users must bypass Gatekeeper again after each update.
+
+This is the expected behavior for unsigned distribution and is not a bug in the
+update infrastructure.
+
+### Quick reference — all unsigned commands
+
+| Command                                          | Output                                               |
+| ------------------------------------------------ | ---------------------------------------------------- |
+| `pnpm package:mac:dir`                           | `.app` only (fastest — no DMG/ZIP/metadata)          |
+| `pnpm package:mac:zip`                           | `.app` + ZIP + `latest-mac.yml`                      |
+| `pnpm package:mac:release`                       | `.app` + DMG + ZIP + `latest-mac.yml` + verification |
+| `pnpm package:mac:unsigned`                      | DMG + ZIP (no metadata verification)                 |
+| `bash scripts/verify-update-metadata.sh release` | Validate metadata + artifacts                        |
+| `bash scripts/sign-verify.sh --unsigned <app>`   | Validate unsigned signing state                      |
+
+---
+
+## Signed + Notarized Release (blocked)
+
+**Status: Blocked.** Apple Developer credentials are not available. The following
+is documented for when credentials become available.
+
+### Required environment variables
 
 | Variable           | Description                                              |
 | ------------------ | -------------------------------------------------------- |
@@ -25,143 +132,55 @@ unsigned local packaging works without Apple credentials.
 | `APPLE_TEAM_ID`    | Apple Developer Team ID (10-char alphanumeric)           |
 | `CSC_IDENTITY`     | (optional) Common Name of signing cert — auto-discovered |
 
-### Notarization (choose one flow)
+Notarization (choose one):
 
-**Option A — App Store Connect API Key (recommended)**
+| Flow                                    | Variables                                                                    |
+| --------------------------------------- | ---------------------------------------------------------------------------- |
+| App Store Connect API Key (recommended) | `APPLE_API_KEY_ID` + `APPLE_API_ISSUER_ID` (+ optional `APPLE_API_KEY_PATH`) |
+| Apple ID + app-specific password        | `APPLE_ID` + `APPLE_APP_SPECIFIC_PASSWORD`                                   |
 
-| Variable              | Description                               |
-| --------------------- | ----------------------------------------- |
-| `APPLE_API_KEY_ID`    | App Store Connect API Key ID              |
-| `APPLE_API_ISSUER_ID` | App Store Connect Issuer ID               |
-| `APPLE_API_KEY_PATH`  | (optional) Path to `.p8` private key file |
-
-**Option B — Apple ID with app-specific password**
-
-| Variable                      | Description                                          |
-| ----------------------------- | ---------------------------------------------------- |
-| `APPLE_ID`                    | Apple ID email address                               |
-| `APPLE_APP_SPECIFIC_PASSWORD` | App-specific password generated in appleid.apple.com |
-
-## How it works
+### How it works
 
 ```
 pnpm package:mac:signed
     │
-    ├── scripts/check-signing-env.cjs   ← pre-flight: fail early if missing vars
+    ├── scripts/check-signing-env.cjs   ← fail early if missing vars
     │
-    ├── pnpm build                       ← TypeScript + Vite production build
+    ├── pnpm build                       ← production build
     │
-    ├── electron-builder --mac           ← signs .app with identity from
-    │                                        CSC_IDENTITY (or auto-discovered
-    │                                        from CSC_LINK certificate)
+    ├── electron-builder --mac           ← signs .app with CSC_IDENTITY
     │
-    └── scripts/notarize.cjs             ← afterSign hook (top-level):
-            │                                reads env; if credentials present,
-            │                                submits to Apple notary service
-            │                                via notarytool
-            │
-            └── if no credentials: print
-                "skipping notarization"
-                and exit cleanly
+    └── scripts/notarize.cjs             ← afterSign hook: submits to Apple
 ```
 
-### electron-builder.yml config
+### electron-builder.yml config (relevant)
 
 ```yaml
 mac:
   identity: ${CSC_IDENTITY}
   hardenedRuntime: true
+  entitlements: resources/entitlements.mac.plist
   gatekeeperAssess: false
 
 afterSign: scripts/notarize.cjs
+
+publish:
+  provider: github
+  owner: terlanjurkeren9
+  repo: crosspdf-studio
 ```
 
-- `identity: ${CSC_IDENTITY}` — if `CSC_IDENTITY` is set, use it as the signing identity name; if unset (empty), electron-builder auto-discovers from `CSC_LINK` certificate.
-- `CSC_IDENTITY_AUTO_DISCOVERY=false` — when set, signing is skipped entirely (used by `package:mac:unsigned`, `package:mac:dev`, and `package:mac:dir`)
-- `hardenedRuntime: true` — required by Apple notary
-- `gatekeeperAssess: false` — avoids local verify failure on unsigned builds
-- `afterSign` — calls our notarization hook
+### Prerequisites
 
-## Reliable unsigned smoke test
+1. Enroll in [Apple Developer Program](https://developer.apple.com/programs/) ($99/year)
+2. Create a **Developer ID Application** certificate
+3. Export as `.p12` → set as `CSC_LINK` + `CSC_KEY_PASSWORD`
+4. Find **Team ID** in Apple Developer Account → Membership
 
-`pnpm package:mac:dir` produces only the `.app` bundle (no DMG/ZIP).
-This bypasses `hdiutil` contention issues that can cause transient failures on
-some macOS configurations.
-
-If you need a distributable archive without DMG risk, use `pnpm package:mac:zip`
-which produces only the ZIP artifact:
-
-```bash
-pnpm package:mac:zip
-```
-
-For file-size validation (no packaging at all):
-
-```bash
-pnpm package:mac:dir
-```
-
-Output: `release/mac-arm64/CrossPDF Studio.app`
-
-## Scripts
-
-| Script                          | Purpose                                                                |
-| ------------------------------- | ---------------------------------------------------------------------- |
-| `scripts/notarize.cjs`          | electron-builder `afterSign` hook; submits notarization via notarytool |
-| `scripts/check-signing-env.cjs` | Pre-flight credential validation; exits with clear message if missing  |
-| `scripts/sign-verify.sh`        | Post-build verification: `codesign`, `spctl`, `stapler` checks         |
-
-## Verification commands
-
-After packaging, verify the `.app` bundle:
-
-```bash
-# Full verification script
-bash scripts/sign-verify.sh "release/mac-arm64/CrossPDF Studio.app"
-```
-
-Individual manual checks:
-
-```bash
-APP="release/mac-arm64/CrossPDF Studio.app"
-
-# Show signing details (works on unsigned too — prints ad-hoc/no signature)
-codesign -dvvv "$APP"
-
-# Strict signature validation (fails on unsigned — expected for local builds)
-codesign --verify --deep --strict "$APP"
-
-# Gatekeeper assessment
-spctl -a -t exec -vv "$APP"
-
-# Check notarization ticket
-stapler validate "$APP"
-```
-
-**Expected results by build type:**
-
-| Check               | Unsigned build   | Signed + notarized build |
-| ------------------- | ---------------- | ------------------------ |
-| `codesign --verify` | ✗ (no signature) | ✓ (Developer ID valid)   |
-| `spctl -a`          | ✗ (rejected)     | ✓ (accepted)             |
-| `stapler validate`  | ✗ (no ticket)    | ✓ (ticket stapled)       |
-
-## CI integration
-
-Add these as GitHub Actions secrets (repo → Settings → Secrets and variables → Actions):
-
-```
-APPLE_TEAM_ID
-CSC_LINK             ← base64-encoded .p12
-CSC_KEY_PASSWORD
-APPLE_API_KEY_ID
-APPLE_API_ISSUER_ID
-APPLE_API_KEY_PATH   ← (optional) store .p8 content as secret, write to disk during CI
-```
-
-Example CI job step:
+### CI integration
 
 ```yaml
+# With credentials:
 - name: Package macOS (signed)
   env:
     CSC_LINK: ${{ secrets.CSC_LINK }}
@@ -170,121 +189,71 @@ Example CI job step:
     APPLE_API_KEY_ID: ${{ secrets.APPLE_API_KEY_ID }}
     APPLE_API_ISSUER_ID: ${{ secrets.APPLE_API_ISSUER_ID }}
   run: pnpm package:mac:signed
-```
 
-Without secrets, CI builds fall back to unsigned (no crash):
-
-```yaml
-- name: Package macOS (unsigned — no secrets)
+# Without credentials (falls back to unsigned):
+- name: Package macOS (unsigned)
   run: pnpm package:mac:unsigned
 ```
 
-## Prerequisites (Apple Developer)
+### What changes with signed builds
 
-1. Enroll in [Apple Developer Program](https://developer.apple.com/programs/)
-2. Create a **Developer ID Application** certificate in Xcode or Apple Developer portal
-3. Export as `.p12` with password → set as `CSC_LINK` + `CSC_KEY_PASSWORD`
-4. Find your **Team ID** in [Apple Developer Account](https://developer.apple.com/account) → Membership
+| Aspect              | Unsigned                           | Signed + Notarized         |
+| ------------------- | ---------------------------------- | -------------------------- |
+| Gatekeeper          | Blocks (user bypass needed)        | Accepted                   |
+| `codesign --verify` | Fails                              | Passes                     |
+| `stapler validate`  | No ticket                          | Ticket stapled             |
+| Auto-update install | May fail (signature check)         | Works end-to-end           |
+| User experience     | Right-click → Open on first launch | Normal double-click launch |
 
-### App Store Connect API Key (Option A)
+---
 
-1. Go to [App Store Connect → Users and Access → Keys](https://appstoreconnect.apple.com/access/api)
-2. Create a key with **Developer** role
-3. Download `.p8` file, note **Key ID** and **Issuer ID**
+## Scripts
 
-### App-specific password (Option B)
+| Script                              | Purpose                                                                |
+| ----------------------------------- | ---------------------------------------------------------------------- |
+| `scripts/notarize.cjs`              | electron-builder `afterSign` hook; submits notarization via notarytool |
+| `scripts/check-signing-env.cjs`     | Pre-flight credential validation; exits 1 if missing                   |
+| `scripts/sign-verify.sh`            | Post-build verification: `codesign`, `spctl`, `stapler`                |
+| `scripts/verify-update-metadata.sh` | Validate `latest-mac.yml`, ZIP artifacts, filename consistency         |
+| `scripts/release-smoke-test.sh`     | Document manual auto-update smoke test steps                           |
 
-1. Sign in at [appleid.apple.com](https://appleid.apple.com)
-2. Security → App-Specific Passwords → Generate
-3. Use label like "CrossPDF Studio CI"
+---
+
+## Update Metadata Verification
+
+```bash
+bash scripts/verify-update-metadata.sh [release-dir]
+```
+
+| Check                             | Why                                            |
+| --------------------------------- | ---------------------------------------------- |
+| `latest-mac.yml` exists           | electron-updater reads this to detect versions |
+| YAML references `.zip`            | electron-updater downloads ZIP (not DMG)       |
+| ZIP file matches YAML `url` field | Prevents GitHub asset name mismatch            |
+| DMG present (informational)       | Manual install artifact                        |
+| Version consistent                | `package.json` version matches metadata        |
+| `publish.provider: github`        | Required for GitHub provider                   |
+
+### YAML ↔ filename mismatch
+
+electron-builder generates ZIP filenames with spaces (`CrossPDF Studio-X.Y.Z-arm64-mac.zip`)
+but the YAML `url` field uses hyphens (`CrossPDF-Studio-X.Y.Z-arm64-mac.zip`). The
+verification script detects this and reports the exact `cp` command to fix it before
+uploading to GitHub.
+
+---
 
 ## Entitlements
 
-The app uses `resources/entitlements.mac.plist` with hardened runtime exceptions for
-JIT (`allow-jit`), unsigned executable memory, and library validation. These are
-necessary for Electron + native addons and are compatible with notarization.
+`resources/entitlements.mac.plist` contains hardened runtime exceptions for JIT,
+unsigned executable memory, and library validation — required by Electron and
+compatible with notarization.
+
+---
 
 ## Security notes
 
 - `.env*` is in `.gitignore` — credentials are never committed
 - `CSC_LINK` in CI should be a base64-encoded secret, not a plain file path
 - `notarize.cjs` does not log credentials; only operation status messages
-- The `check-signing-env.cjs` pre-flight prevents partial-signing scenarios
-
-## Auto-Update Infrastructure
-
-CrossPDF Studio uses `electron-updater` with the GitHub Releases provider configured
-in `electron-builder.yml`:
-
-```yaml
-publish:
-  provider: github
-  owner: terlanjurkeren9
-  repo: crosspdf-studio
-```
-
-`electron-updater` resolves releases via the GitHub API using `owner`/`repo` at
-runtime. Without these fields the updater cannot locate release assets.
-
-### How it works
-
-```
-GitHub Release (with latest-mac.yml)
-  → electron-updater checks for newer version
-  → Downloads update ZIP asset
-  → Installs on quit (autoInstallOnAppQuit: true)
-```
-
-### Initialization
-
-- `updater.service.ts` initializes only when `app.isPackaged === true` and
-  `CROSSPDF_E2E` is not set. In dev or E2E mode, the updater is fully skipped
-  and no network calls are made.
-- Initial check runs on startup (non-blocking, errors are logged and swallowed).
-- User can manually check via Help → "Check for Updates" menu item.
-
-### Guard rails
-
-- `downloadUpdate()` only calls `autoUpdater.downloadUpdate()` when internal
-  state is `available`. Calling it in any other state is a no-op.
-- `quitAndInstall()` only calls `autoUpdater.quitAndInstall()` when internal
-  state is `downloaded`. Calling it in any other state is a no-op.
-- The preload sanitises every `update:status` payload before it reaches the
-  renderer, discarding malformed data and falling back to an `error` state.
-
-### IPC surface
-
-| Channel                   | Direction       | Description                            |
-| ------------------------- | --------------- | -------------------------------------- |
-| `update:check`            | renderer → main | Trigger check for updates              |
-| `update:download`         | renderer → main | Download available update              |
-| `update:quit-and-install` | renderer → main | Quit app and install downloaded update |
-| `update:get-state`        | renderer → main | Get current update state               |
-| `update:status`           | main → renderer | Push status/progress changes           |
-
-All renderer→main channels use `ipcRenderer.invoke` / `ipcMain.handle`
-(request/response) for consistency.
-
-### Production requirements
-
-- **Signed + notarized builds are mandatory** for macOS auto-update. `electron-updater`
-  verifies the code signature of the downloaded update; unsigned builds will fail
-  this check silently.
-- **A GitHub Release** with `latest-mac.yml` (macOS) and/or `latest.yml` (Windows)
-  assets must exist for `electron-updater` to detect an available update. The release
-  tag must be a valid semver (e.g. `v0.2.0`) higher than the current `package.json`
-  version.
-- **Windows**: NSIS installer updates use the same GitHub provider.
-- **macOS**: The release must include a ZIP asset (not just DMG) because
-  `electron-updater` downloads ZIP files for macOS updates.
-
-### Residual risk
-
-- **Real update flow has never been tested end-to-end.** No signed/notarized release
-  has been published to the GitHub Releases channel. Until a real release exists,
-  the full check → download → quit-and-install cycle remains unverified in
-  production conditions.
-- E2E tests cover only the UI surface (menu item presence, no-crash smoke). They
-  do not exercise actual network calls or binary replacement.
-- The `electron-updater` GitHub provider reads release metadata from the GitHub API.
-  Rate limiting may affect frequent checks.
+- `check-signing-env.cjs` prevents partial-signing scenarios
