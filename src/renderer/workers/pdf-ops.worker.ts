@@ -26,7 +26,9 @@ type OpsMessage =
       pngs: ArrayBuffer[];
       redactedPageNumbers: number[];
     }
-  | { id: string; type: 'embed-stamps'; source: ArrayBuffer; stamps: StampInput[] };
+  | { id: string; type: 'embed-stamps'; source: ArrayBuffer; stamps: StampInput[] }
+  | { id: string; type: 'addFormField'; source: ArrayBuffer; field: FormFieldSpec }
+  | { id: string; type: 'addFormFields'; source: ArrayBuffer; fields: FormFieldSpec[] };
 
 type OpsResponse =
   | { id: string; type: 'success'; data: Uint8Array }
@@ -177,6 +179,20 @@ export interface FormFieldInfo {
   isRequired: boolean;
   maxLength: number | undefined;
   options: string[];
+}
+
+export interface FormFieldSpec {
+  name: string;
+  type: 'text' | 'checkbox' | 'dropdown' | 'radiogroup';
+  page: number;
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  required: boolean;
+  defaultValue?: string;
+  options?: string[];
+  maxLength?: number;
 }
 
 async function handleGetFormFields(source: ArrayBuffer): Promise<FormFieldInfo[]> {
@@ -344,6 +360,172 @@ async function handleFlattenForm(source: ArrayBuffer): Promise<Uint8Array> {
   return doc.save({ useObjectStreams: true });
 }
 
+async function handleAddFormField(source: ArrayBuffer, field: FormFieldSpec): Promise<Uint8Array> {
+  const doc = await PDFDocument.load(source, { ignoreEncryption: true });
+  const form = doc.getForm();
+  const pages = doc.getPages();
+  const pageIdx = field.page - 1;
+  if (pageIdx < 0 || pageIdx >= pages.length) {
+    throw new Error(`Page ${field.page} does not exist.`);
+  }
+  const page = pages[pageIdx];
+
+  const opts = {
+    x: field.x,
+    y: field.y,
+    width: field.width,
+    height: field.height,
+  };
+
+  switch (field.type) {
+    case 'text': {
+      const tf = form.createTextField(field.name);
+      if (field.defaultValue) tf.setText(field.defaultValue);
+      if (field.maxLength) tf.setMaxLength(field.maxLength);
+      if (field.required) tf.enableRequired();
+      tf.addToPage(page, opts);
+      break;
+    }
+    case 'checkbox': {
+      const cb = form.createCheckBox(field.name);
+      if (field.defaultValue === 'true') cb.check();
+      if (field.required) cb.enableRequired();
+      cb.addToPage(page, opts);
+      break;
+    }
+    case 'dropdown': {
+      const dd = form.createDropdown(field.name);
+      if (field.options && field.options.length > 0) dd.addOptions(field.options);
+      if (field.defaultValue) {
+        try {
+          dd.select(field.defaultValue);
+        } catch {
+          /* ignore invalid default */
+        }
+      }
+      if (field.required) dd.enableRequired();
+      dd.addToPage(page, opts);
+      break;
+    }
+    case 'radiogroup': {
+      const rg = form.createRadioGroup(field.name);
+      if (field.options && field.options.length > 0) {
+        const gap = 4;
+        for (let i = 0; i < field.options.length; i++) {
+          const opt = field.options[i];
+          rg.addOptionToPage(opt, page, {
+            x: field.x,
+            y: field.y - i * (field.height + gap),
+            width: field.width,
+            height: field.height,
+          });
+        }
+      }
+      if (field.defaultValue) {
+        try {
+          rg.select(field.defaultValue);
+        } catch {
+          /* ignore invalid default */
+        }
+      }
+      if (field.required) rg.enableRequired();
+      break;
+    }
+  }
+
+  doc.setProducer('CrossPDF Studio');
+  doc.setCreator('CrossPDF Studio');
+  return doc.save({ useObjectStreams: true });
+}
+
+async function handleAddFormFields(
+  source: ArrayBuffer,
+  fields: FormFieldSpec[]
+): Promise<Uint8Array> {
+  const doc = await PDFDocument.load(source, { ignoreEncryption: true });
+  const form = doc.getForm();
+  const pages = doc.getPages();
+
+  for (const field of fields) {
+    const pageIdx = field.page - 1;
+    if (pageIdx < 0 || pageIdx >= pages.length) {
+      throw new Error(`Page ${field.page} does not exist.`);
+    }
+    const page = pages[pageIdx];
+
+    // Convert from screen coords (top-left origin) to PDF coords (bottom-left origin)
+    const { height: pageHeight } = page.getSize();
+    const pdfY = pageHeight - field.y - field.height;
+
+    const opts = {
+      x: field.x,
+      y: pdfY,
+      width: field.width,
+      height: field.height,
+    };
+
+    switch (field.type) {
+      case 'text': {
+        const tf = form.createTextField(field.name);
+        if (field.defaultValue) tf.setText(field.defaultValue);
+        if (field.maxLength) tf.setMaxLength(field.maxLength);
+        if (field.required) tf.enableRequired();
+        tf.addToPage(page, opts);
+        break;
+      }
+      case 'checkbox': {
+        const cb = form.createCheckBox(field.name);
+        if (field.defaultValue === 'true') cb.check();
+        if (field.required) cb.enableRequired();
+        cb.addToPage(page, opts);
+        break;
+      }
+      case 'dropdown': {
+        const dd = form.createDropdown(field.name);
+        if (field.options && field.options.length > 0) dd.addOptions(field.options);
+        if (field.defaultValue) {
+          try {
+            dd.select(field.defaultValue);
+          } catch {
+            /* ignore invalid default */
+          }
+        }
+        if (field.required) dd.enableRequired();
+        dd.addToPage(page, opts);
+        break;
+      }
+      case 'radiogroup': {
+        const rg = form.createRadioGroup(field.name);
+        if (field.options && field.options.length > 0) {
+          const gap = 4;
+          for (let i = 0; i < field.options.length; i++) {
+            const opt = field.options[i];
+            rg.addOptionToPage(opt, page, {
+              x: field.x,
+              y: pdfY - i * (field.height + gap),
+              width: field.width,
+              height: field.height,
+            });
+          }
+        }
+        if (field.defaultValue) {
+          try {
+            rg.select(field.defaultValue);
+          } catch {
+            /* ignore invalid default */
+          }
+        }
+        if (field.required) rg.enableRequired();
+        break;
+      }
+    }
+  }
+
+  doc.setProducer('CrossPDF Studio');
+  doc.setCreator('CrossPDF Studio');
+  return doc.save({ useObjectStreams: true });
+}
+
 self.onmessage = async (event: MessageEvent<OpsMessage>) => {
   const msg = event.data;
 
@@ -405,6 +587,16 @@ self.onmessage = async (event: MessageEvent<OpsMessage>) => {
       }
       case 'embed-stamps': {
         const data = await handleEmbedStamps(msg.source, msg.stamps);
+        self.postMessage({ id: msg.id, type: 'success', data } satisfies OpsResponse);
+        break;
+      }
+      case 'addFormField': {
+        const data = await handleAddFormField(msg.source, msg.field);
+        self.postMessage({ id: msg.id, type: 'success', data } satisfies OpsResponse);
+        break;
+      }
+      case 'addFormFields': {
+        const data = await handleAddFormFields(msg.source, msg.fields);
         self.postMessage({ id: msg.id, type: 'success', data } satisfies OpsResponse);
         break;
       }

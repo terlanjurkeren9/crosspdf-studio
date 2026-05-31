@@ -12,7 +12,9 @@ type OpsRequest =
       pngs: ArrayBuffer[];
       redactedPageNumbers: number[];
     }
-  | { id: string; type: 'embed-stamps'; source: ArrayBuffer; stamps: StampInput[] };
+  | { id: string; type: 'embed-stamps'; source: ArrayBuffer; stamps: StampInput[] }
+  | { id: string; type: 'addFormField'; source: ArrayBuffer; field: FormFieldSpec }
+  | { id: string; type: 'addFormFields'; source: ArrayBuffer; fields: FormFieldSpec[] };
 
 type OpsResponse =
   | { id: string; type: 'success'; data: Uint8Array }
@@ -35,7 +37,9 @@ type OpsRequestParams =
       pngs: ArrayBuffer[];
       redactedPageNumbers: number[];
     }
-  | { type: 'embed-stamps'; source: ArrayBuffer; stamps: StampInput[] };
+  | { type: 'embed-stamps'; source: ArrayBuffer; stamps: StampInput[] }
+  | { type: 'addFormField'; source: ArrayBuffer; field: FormFieldSpec }
+  | { type: 'addFormFields'; source: ArrayBuffer; fields: FormFieldSpec[] };
 
 export interface FormFieldInfo {
   name: string;
@@ -46,6 +50,20 @@ export interface FormFieldInfo {
   isRequired: boolean;
   maxLength: number | undefined;
   options: string[];
+}
+
+export interface FormFieldSpec {
+  name: string;
+  type: 'text' | 'checkbox' | 'dropdown' | 'radiogroup';
+  page: number;
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  required: boolean;
+  defaultValue?: string;
+  options?: string[];
+  maxLength?: number;
 }
 
 let workerPromise: Promise<Worker> | null = null;
@@ -286,6 +304,25 @@ export async function applyRedactions(
     pngs,
     redactedPageNumbers,
   });
+  if (result.type === 'error') throw new Error(result.message);
+  if (result.type === 'success-multi') throw new Error('Unexpected multi result');
+  return result.data;
+}
+
+export async function addFormField(source: ArrayBuffer, field: FormFieldSpec): Promise<Uint8Array> {
+  const worker = await getWorker();
+  const result = await sendRequest(worker, { type: 'addFormField', source, field });
+  if (result.type === 'error') throw new Error(result.message);
+  if (result.type === 'success-multi') throw new Error('Unexpected multi result');
+  return result.data;
+}
+
+export async function addFormFields(
+  source: ArrayBuffer,
+  fields: FormFieldSpec[]
+): Promise<Uint8Array> {
+  const worker = await getWorker();
+  const result = await sendRequest(worker, { type: 'addFormFields', source, fields });
   if (result.type === 'error') throw new Error(result.message);
   if (result.type === 'success-multi') throw new Error('Unexpected multi result');
   return result.data;
