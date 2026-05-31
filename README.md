@@ -13,6 +13,7 @@ Professional cross-platform PDF editor built with Electron + React + TypeScript.
 | Language        | TypeScript 6 (strict)         |
 | Bundler         | Vite 8 + vite-plugin-electron |
 | PDF Rendering   | PDF.js (`pdfjs-dist`)         |
+| i18n            | i18next + react-i18next       |
 | State           | Zustand 5                     |
 | Validation      | Zod 4                         |
 | Database        | sql.js (WASM SQLite)          |
@@ -75,6 +76,7 @@ crosspdf-studio/
 │   │   ├── main.tsx    # Entry point
 │   │   ├── App.tsx     # Root component
 │   │   ├── components/ # UI components
+│   │   ├── i18n/       # Renderer translation setup + English strings
 │   │   ├── stores/     # Zustand stores
 │   │   └── hooks/      # React hooks
 │   └── shared/         # Shared types + IPC channels
@@ -122,12 +124,18 @@ Phase 0 uses **sql.js** (WASM-compiled SQLite) as a fallback from `better-sqlite
 Packaging scripts are configured with `electron-builder@24` (stable).
 
 ```bash
-pnpm package:mac   # macOS DMG
-pnpm package:win   # Windows NSIS
-pnpm package:all   # Both platforms
+pnpm package:mac          # macOS DMG + ZIP
+pnpm package:mac:unsigned # macOS unsigned (local dev, no credentials)
+pnpm package:mac:signed   # macOS signed + notarized (requires env vars)
+pnpm package:win          # Windows NSIS
+pnpm package:all          # Both platforms
 ```
 
-Code signing and notarization are deferred to Phase 5. See `electron-builder.yml` for configuration.
+### macOS Code Signing & Notarization
+
+Signing and notarization are **env-gated** — local unsigned builds work without Apple credentials.
+
+See [`docs/signing.md`](docs/signing.md) for full setup guide, required secrets, and verification commands.
 
 ## E2E Tests
 
@@ -151,6 +159,12 @@ E2E tests cover:
 Platform support: macOS and Windows (CI: `.github/workflows/e2e.yml`). Linux is not currently targeted for E2E.
 
 Configuration: `playwright.config.ts` | Tests: `e2e/*.spec.ts`
+
+## Internationalization
+
+Renderer UI strings use `i18next` with `react-i18next`. Default language and fallback language are both English (`en`).
+
+English strings live in `src/renderer/i18n/locales/en.json`, grouped by namespaces such as `common.*`, `menu.*`, `home.*`, `sidebar.*`, `viewer.*`, and `preferences.*`. Add new English keys there first, then read them from components with `const { t } = useTranslation()` and `t('namespace.key')`.
 
 ## Performance Baseline
 

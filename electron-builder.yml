@@ -39,6 +39,10 @@ mac:
   hardenedRuntime: true
   entitlements: resources/entitlements.mac.plist
   entitlementsInherit: resources/entitlements.mac.plist
+  identity: ${CSC_IDENTITY}
+  gatekeeperAssess: false
+
+afterSign: scripts/notarize.cjs
 
 win:
   icon: resources/icon.ico
@@ -62,3 +66,5 @@ fileAssociations:
 
 publish:
   provider: github
+  owner: terlanjurkeren9
+  repo: crosspdf-studio

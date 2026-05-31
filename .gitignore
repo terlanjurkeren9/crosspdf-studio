@@ -8,6 +8,7 @@ release/
 # IDE
 .vscode/
 .idea/
+.commandcode/
 *.swp
 *.swo
 
