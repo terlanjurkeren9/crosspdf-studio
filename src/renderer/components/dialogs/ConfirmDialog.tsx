@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react';
 import { Loader2 } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import { Button } from '../ui/Button';
 import { Dialog } from '../ui/Dialog';
 
@@ -24,6 +25,7 @@ export function ConfirmDialog({
   destructive = false,
   loading = false,
 }: ConfirmDialogProps) {
+  const { t } = useTranslation();
   return (
     <Dialog
       open={open}
@@ -32,7 +34,7 @@ export function ConfirmDialog({
       footer={
         <>
           <Button type="button" variant="secondary" onClick={onClose} disabled={loading}>
-            Cancel
+            {t('common.cancel')}
           </Button>
           <Button
             type="button"

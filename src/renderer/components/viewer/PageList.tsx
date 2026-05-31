@@ -26,6 +26,10 @@ interface PageListProps {
     pageNumber: number,
     rect: { x: number; y: number; width: number; height: number }
   ) => void;
+  onFormFieldDrawn?: (
+    pageNumber: number,
+    rect: { x: number; y: number; width: number; height: number }
+  ) => void;
   // Annotation interaction (move/resize for stamp, sticky-note, free-text)
   onAnnotationMoved?: (
     id: string,
@@ -55,6 +59,7 @@ export function PageList({
   onAnnotationDoubleClick,
   onPageClick,
   onRedactionDrawn,
+  onFormFieldDrawn,
   onAnnotationMoved,
   onAnnotationResized,
 }: PageListProps) {
@@ -211,6 +216,7 @@ export function PageList({
                   onAnnotationDoubleClick={onAnnotationDoubleClick}
                   onPageClick={onPageClick}
                   onRedactionDrawn={onRedactionDrawn}
+                  onFormFieldDrawn={onFormFieldDrawn}
                   onAnnotationMoved={onAnnotationMoved}
                   onAnnotationResized={onAnnotationResized}
                 />

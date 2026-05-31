@@ -180,6 +180,19 @@ export function createAnnotation(
       } as unknown as Annotation;
       return ann;
     }
+    case 'form-field': {
+      const ann: Annotation = {
+        ...base,
+        type: 'form-field',
+        color: '#3b82f6',
+        opacity: 1,
+        fieldName: '',
+        fieldType: 'text',
+        required: false,
+        ...overrides,
+      } as unknown as Annotation;
+      return ann;
+    }
   }
 }
 

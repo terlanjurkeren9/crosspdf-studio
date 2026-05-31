@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Dialog } from '../ui/Dialog';
 import { reorderPages } from '../../services/pdf-ops.service';
 
@@ -17,6 +18,7 @@ export function ReorderDialog({
   sourceFileName,
   totalPages,
 }: ReorderDialogProps) {
+  const { t } = useTranslation();
   const buildOrder = useCallback(
     () => Array.from({ length: totalPages }, (_, i) => i + 1),
     [totalPages]
@@ -134,7 +136,7 @@ export function ReorderDialog({
             disabled={loading}
             className="px-3 py-1.5 text-xs rounded border border-surface-300 dark:border-surface-600 text-surface-600 dark:text-surface-300 hover:bg-surface-100 dark:hover:bg-surface-800 disabled:opacity-30"
           >
-            Cancel
+            {t('common.cancel')}
           </button>
           {hasChanges && (
             <button
@@ -186,7 +188,7 @@ export function ReorderDialog({
             onClick={() => handleMove('first')}
             disabled={selectedIndex === null || loading}
             className="p-1 rounded border border-surface-300 dark:border-surface-600 text-surface-500 disabled:opacity-20 hover:bg-surface-100 dark:hover:bg-surface-800"
-            title="Move to first"
+            aria-label="Move to first"
           >
             <svg
               className="w-3.5 h-3.5"
@@ -207,7 +209,7 @@ export function ReorderDialog({
             onClick={() => handleMove('up')}
             disabled={selectedIndex === null || selectedIndex === 0 || loading}
             className="p-1 rounded border border-surface-300 dark:border-surface-600 text-surface-500 disabled:opacity-20 hover:bg-surface-100 dark:hover:bg-surface-800"
-            title="Move up"
+            aria-label="Move up"
           >
             <svg
               className="w-3.5 h-3.5"
@@ -224,7 +226,7 @@ export function ReorderDialog({
             onClick={() => handleMove('down')}
             disabled={selectedIndex === null || selectedIndex >= pageOrder.length - 1 || loading}
             className="p-1 rounded border border-surface-300 dark:border-surface-600 text-surface-500 disabled:opacity-20 hover:bg-surface-100 dark:hover:bg-surface-800"
-            title="Move down"
+            aria-label="Move down"
           >
             <svg
               className="w-3.5 h-3.5"
@@ -241,7 +243,7 @@ export function ReorderDialog({
             onClick={() => handleMove('last')}
             disabled={selectedIndex === null || loading}
             className="p-1 rounded border border-surface-300 dark:border-surface-600 text-surface-500 disabled:opacity-20 hover:bg-surface-100 dark:hover:bg-surface-800"
-            title="Move to last"
+            aria-label="Move to last"
           >
             <svg
               className="w-3.5 h-3.5"

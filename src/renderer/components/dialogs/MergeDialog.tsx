@@ -1,4 +1,5 @@
 import { useCallback, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Dialog } from '../ui/Dialog';
 import { mergePDFs } from '../../services/pdf-ops.service';
 
@@ -14,6 +15,7 @@ interface MergeDialogProps {
 }
 
 export function MergeDialog({ open, onClose }: MergeDialogProps) {
+  const { t } = useTranslation();
   const [files, setFiles] = useState<FileEntry[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -141,7 +143,7 @@ export function MergeDialog({ open, onClose }: MergeDialogProps) {
             disabled={loading}
             className="px-3 py-1.5 text-xs rounded border border-surface-300 dark:border-surface-600 text-surface-600 dark:text-surface-300 hover:bg-surface-100 dark:hover:bg-surface-800 disabled:opacity-30"
           >
-            Cancel
+            {t('common.cancel')}
           </button>
           <button
             type="button"
@@ -223,7 +225,7 @@ export function MergeDialog({ open, onClose }: MergeDialogProps) {
                   onClick={() => handleMoveUp(i)}
                   disabled={i === 0 || loading}
                   className="p-0.5 rounded hover:bg-surface-200 dark:hover:bg-surface-700 text-surface-400 disabled:opacity-20"
-                  title="Move up"
+                  aria-label={`Move ${file.name} up`}
                 >
                   <svg
                     className="w-3 h-3"
@@ -240,7 +242,7 @@ export function MergeDialog({ open, onClose }: MergeDialogProps) {
                   onClick={() => handleMoveDown(i)}
                   disabled={i >= files.length - 1 || loading}
                   className="p-0.5 rounded hover:bg-surface-200 dark:hover:bg-surface-700 text-surface-400 disabled:opacity-20"
-                  title="Move down"
+                  aria-label={`Move ${file.name} down`}
                 >
                   <svg
                     className="w-3 h-3"
@@ -257,7 +259,7 @@ export function MergeDialog({ open, onClose }: MergeDialogProps) {
                   onClick={() => handleRemove(i)}
                   disabled={loading}
                   className="p-0.5 rounded hover:bg-red-100 dark:hover:bg-red-900/30 text-surface-400 hover:text-red-500 disabled:opacity-20"
-                  title="Remove"
+                  aria-label={`Remove ${file.name}`}
                 >
                   <svg
                     className="w-3.5 h-3.5"

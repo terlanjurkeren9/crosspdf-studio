@@ -1,4 +1,5 @@
 import { useCallback, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Dialog } from '../ui/Dialog';
 import { extractPages } from '../../services/pdf-ops.service';
 import { parsePageRanges, extractOutputName } from '../../lib/page-range-parser';
@@ -20,6 +21,7 @@ export function ExtractPagesDialog({
   totalPages,
   preSelectedPages,
 }: ExtractPagesDialogProps) {
+  const { t } = useTranslation();
   const [rangeInput, setRangeInput] = useState(
     preSelectedPages && preSelectedPages.length > 0 ? preSelectedPages.join(', ') : ''
   );
@@ -87,7 +89,7 @@ export function ExtractPagesDialog({
             disabled={loading}
             className="px-3 py-1.5 text-xs rounded border border-surface-300 dark:border-surface-600 text-surface-600 dark:text-surface-300 hover:bg-surface-100 dark:hover:bg-surface-800 disabled:opacity-30"
           >
-            Cancel
+            {t('common.cancel')}
           </button>
           <button
             type="button"

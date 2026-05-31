@@ -1,4 +1,5 @@
 import { FileText, FolderOpen, Images, Combine } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import { useUIStore } from '../../stores/ui.store';
 import { Button } from '../ui/Button';
 import { RecentDocuments } from './RecentDocuments';
@@ -10,19 +11,19 @@ interface HomeScreenProps {
 
 const quickActions = [
   {
-    label: 'Open PDF',
+    labelKey: 'home.openPdf',
     icon: FolderOpen,
     variant: 'primary' as const,
     action: 'open',
   },
   {
-    label: 'Images to PDF',
+    labelKey: 'home.imagesToPdf',
     icon: Images,
     variant: 'secondary' as const,
     action: 'images-to-pdf',
   },
   {
-    label: 'Merge PDFs',
+    labelKey: 'home.mergePdfs',
     icon: Combine,
     variant: 'secondary' as const,
     action: 'merge',
@@ -30,6 +31,7 @@ const quickActions = [
 ];
 
 export function HomeScreen({ onOpenFile, onOpenFilePath }: HomeScreenProps) {
+  const { t } = useTranslation();
   const openDialog = useUIStore((s) => s.openDialog);
   const openPageOpsDialog = useUIStore((s) => s.openPageOpsDialog);
 
@@ -58,9 +60,9 @@ export function HomeScreen({ onOpenFile, onOpenFilePath }: HomeScreenProps) {
             </div>
             <div>
               <h2 className="text-lg font-semibold tracking-tight text-surface-800 dark:text-surface-100">
-                CrossPDF Studio
+                {t('home.appName')}
               </h2>
-              <p className="text-[13px] text-surface-400">Offline PDF workspace</p>
+              <p className="text-[13px] text-surface-400">{t('home.offlineWorkspace')}</p>
             </div>
           </div>
         </section>
@@ -68,20 +70,20 @@ export function HomeScreen({ onOpenFile, onOpenFilePath }: HomeScreenProps) {
         {/* Quick Actions */}
         <section>
           <h3 className="mb-3 text-[11px] font-semibold uppercase tracking-widest text-surface-400">
-            Quick Actions
+            {t('home.quickActions')}
           </h3>
           <div className="flex flex-wrap gap-2.5">
             {quickActions.map((qa) => {
               const Icon = qa.icon;
               return (
                 <Button
-                  key={qa.label}
+                  key={qa.labelKey}
                   variant={qa.variant}
                   size="sm"
                   onClick={() => handleAction(qa.action)}
                 >
                   <Icon className="h-4 w-4" />
-                  {qa.label}
+                  {t(qa.labelKey)}
                 </Button>
               );
             })}
@@ -91,7 +93,7 @@ export function HomeScreen({ onOpenFile, onOpenFilePath }: HomeScreenProps) {
         {/* Recent Files */}
         <section className="flex min-h-0 flex-1 flex-col">
           <h3 className="mb-3 text-[11px] font-semibold uppercase tracking-widest text-surface-400">
-            Recent Documents
+            {t('home.recentDocuments')}
           </h3>
           <div className="flex-1 rounded-xl border border-surface-200 bg-white p-4 shadow-sm dark:border-surface-700 dark:bg-surface-800">
             <RecentDocuments onOpenFile={onOpenFilePath} />

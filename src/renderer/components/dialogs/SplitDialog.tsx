@@ -1,4 +1,5 @@
 import { useCallback, useMemo, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Dialog } from '../ui/Dialog';
 import { splitPDF } from '../../services/pdf-ops.service';
 import {
@@ -24,6 +25,7 @@ export function SplitDialog({
   sourceFileName,
   totalPages,
 }: SplitDialogProps) {
+  const { t } = useTranslation();
   const [mode, setMode] = useState<SplitMode>('count');
   const [pagesPerFile, setPagesPerFile] = useState(1);
   const [rangesInput, setRangesInput] = useState('');
@@ -126,7 +128,7 @@ export function SplitDialog({
             disabled={loading}
             className="px-3 py-1.5 text-xs rounded border border-surface-300 dark:border-surface-600 text-surface-600 dark:text-surface-300 hover:bg-surface-100 dark:hover:bg-surface-800 disabled:opacity-30"
           >
-            Cancel
+            {t('common.cancel')}
           </button>
           <button
             type="button"
@@ -162,9 +164,14 @@ export function SplitDialog({
         </p>
 
         {/* Mode toggle */}
-        <div className="flex gap-1 bg-surface-100 dark:bg-surface-800 rounded p-0.5">
+        <div
+          role="group"
+          aria-label="Split mode"
+          className="flex gap-1 bg-surface-100 dark:bg-surface-800 rounded p-0.5"
+        >
           <button
             type="button"
+            aria-pressed={mode === 'count'}
             onClick={() => setMode('count')}
             className={`flex-1 px-2 py-1 text-xs rounded ${
               mode === 'count'
@@ -176,6 +183,7 @@ export function SplitDialog({
           </button>
           <button
             type="button"
+            aria-pressed={mode === 'ranges'}
             onClick={() => setMode('ranges')}
             className={`flex-1 px-2 py-1 text-xs rounded ${
               mode === 'ranges'

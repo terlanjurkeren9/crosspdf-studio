@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Dialog } from '../ui/Dialog';
 import { Button } from '../ui/Button';
 import { useUIStore } from '../../stores/ui.store';
@@ -29,11 +30,11 @@ const DEFAULTS: PreferenceValues = {
   maxRecentDocuments: 20,
 };
 
-const TABS: { key: PrefsTab; label: string }[] = [
-  { key: 'general', label: 'General' },
-  { key: 'appearance', label: 'Appearance' },
-  { key: 'performance', label: 'Performance' },
-  { key: 'ocr', label: 'OCR' },
+const TABS: { key: PrefsTab; labelKey: string }[] = [
+  { key: 'general', labelKey: 'preferences.general' },
+  { key: 'appearance', labelKey: 'preferences.appearance' },
+  { key: 'performance', labelKey: 'preferences.performance' },
+  { key: 'ocr', labelKey: 'preferences.ocr' },
 ];
 
 interface PreferencesDialogProps {
@@ -68,6 +69,7 @@ function validatePreference<K extends keyof PreferenceValues>(
 }
 
 export function PreferencesDialog({ open, onClose }: PreferencesDialogProps) {
+  const { t } = useTranslation();
   const [activeTab, setActiveTab] = useState<PrefsTab>('general');
   const [values, setValues] = useState<PreferenceValues>({ ...DEFAULTS });
   const [loaded, setLoaded] = useState(false);
@@ -124,7 +126,7 @@ export function PreferencesDialog({ open, onClose }: PreferencesDialogProps) {
     }
 
     if (failed) {
-      setSaveError('Some preferences could not be saved. Please try again.');
+      setSaveError(t('preferences.saveError'));
       return;
     }
 
@@ -132,7 +134,7 @@ export function PreferencesDialog({ open, onClose }: PreferencesDialogProps) {
     setTheme(values.theme as 'light' | 'dark' | 'system');
 
     onClose();
-  }, [values, setTheme, onClose]);
+  }, [values, setTheme, onClose, t]);
 
   const update = useCallback(
     <K extends keyof PreferenceValues>(key: K, value: PreferenceValues[K]) => {
@@ -143,8 +145,8 @@ export function PreferencesDialog({ open, onClose }: PreferencesDialogProps) {
 
   if (!loaded) {
     return (
-      <Dialog open={open} onClose={onClose} title="Preferences">
-        <div className="p-4 text-center text-surface-500">Loading preferences...</div>
+      <Dialog open={open} onClose={onClose} title={t('preferences.title')}>
+        <div className="p-4 text-center text-surface-500">{t('preferences.loading')}</div>
       </Dialog>
     );
   }
@@ -153,14 +155,14 @@ export function PreferencesDialog({ open, onClose }: PreferencesDialogProps) {
     <Dialog
       open={open}
       onClose={onClose}
-      title="Preferences"
+      title={t('preferences.title')}
       footer={
         <div className="flex items-center gap-2">
           <Button variant="secondary" onClick={onClose}>
-            Cancel
+            {t('common.cancel')}
           </Button>
           <Button variant="primary" onClick={handleSave}>
-            Save
+            {t('common.save')}
           </Button>
         </div>
       }
@@ -172,19 +174,25 @@ export function PreferencesDialog({ open, onClose }: PreferencesDialogProps) {
       )}
       <div className="flex gap-4">
         {/* Tabs */}
-        <div className="w-28 shrink-0">
-          {TABS.map((t) => (
+        <div
+          role="tablist"
+          aria-label={t('preferences.preferenceCategories')}
+          className="w-28 shrink-0"
+        >
+          {TABS.map((tab) => (
             <button
-              key={t.key}
+              key={tab.key}
               type="button"
-              onClick={() => setActiveTab(t.key)}
+              role="tab"
+              aria-selected={activeTab === tab.key}
+              onClick={() => setActiveTab(tab.key)}
               className={`w-full text-left px-3 py-1.5 text-sm rounded mb-0.5 ${
-                activeTab === t.key
+                activeTab === tab.key
                   ? 'bg-brand-100 dark:bg-brand-900 text-brand-700 dark:text-brand-300 font-medium'
                   : 'text-surface-600 dark:text-surface-400 hover:bg-surface-100 dark:hover:bg-surface-800'
               }`}
             >
-              {t.label}
+              {t(tab.labelKey)}
             </button>
           ))}
         </div>
@@ -195,36 +203,36 @@ export function PreferencesDialog({ open, onClose }: PreferencesDialogProps) {
             <div className="space-y-4">
               <div>
                 <label className="block text-xs font-medium text-surface-600 dark:text-surface-400 mb-1">
-                  Default zoom mode
+                  {t('preferences.defaultZoomMode')}
                 </label>
                 <select
                   value={values.defaultZoomMode}
                   onChange={(e) => update('defaultZoomMode', e.target.value)}
                   className="w-full h-8 px-2 text-sm rounded border border-surface-300 dark:border-surface-600 bg-white dark:bg-surface-800 text-surface-900 dark:text-surface-100"
                 >
-                  <option value="fit-width">Fit Width</option>
-                  <option value="fit-page">Fit Page</option>
-                  <option value="actual">Actual Size</option>
+                  <option value="fit-width">{t('preferences.fitWidth')}</option>
+                  <option value="fit-page">{t('preferences.fitPage')}</option>
+                  <option value="actual">{t('preferences.actualSize')}</option>
                 </select>
               </div>
 
               <div>
                 <label className="block text-xs font-medium text-surface-600 dark:text-surface-400 mb-1">
-                  Default page layout
+                  {t('preferences.defaultPageLayout')}
                 </label>
                 <select
                   value={values.defaultViewMode}
                   onChange={(e) => update('defaultViewMode', e.target.value)}
                   className="w-full h-8 px-2 text-sm rounded border border-surface-300 dark:border-surface-600 bg-white dark:bg-surface-800 text-surface-900 dark:text-surface-100"
                 >
-                  <option value="continuous">Continuous scroll</option>
-                  <option value="single">Single page</option>
+                  <option value="continuous">{t('preferences.continuousScroll')}</option>
+                  <option value="single">{t('preferences.singlePage')}</option>
                 </select>
               </div>
 
               <div>
                 <label className="block text-xs font-medium text-surface-600 dark:text-surface-400 mb-1">
-                  Max recent documents ({values.maxRecentDocuments})
+                  {t('preferences.maxRecentDocuments', { value: values.maxRecentDocuments })}
                 </label>
                 <input
                   type="range"
@@ -244,7 +252,7 @@ export function PreferencesDialog({ open, onClose }: PreferencesDialogProps) {
                   onChange={(e) => update('restoreLastSession', e.target.checked)}
                   className="rounded"
                 />
-                Restore last session on startup
+                {t('preferences.restoreLastSession')}
               </label>
             </div>
           )}
@@ -253,16 +261,16 @@ export function PreferencesDialog({ open, onClose }: PreferencesDialogProps) {
             <div className="space-y-4">
               <div>
                 <label className="block text-xs font-medium text-surface-600 dark:text-surface-400 mb-1">
-                  Theme
+                  {t('preferences.theme')}
                 </label>
                 <select
                   value={values.theme}
                   onChange={(e) => update('theme', e.target.value)}
                   className="w-full h-8 px-2 text-sm rounded border border-surface-300 dark:border-surface-600 bg-white dark:bg-surface-800 text-surface-900 dark:text-surface-100"
                 >
-                  <option value="system">System</option>
-                  <option value="light">Light</option>
-                  <option value="dark">Dark</option>
+                  <option value="system">{t('preferences.system')}</option>
+                  <option value="light">{t('preferences.light')}</option>
+                  <option value="dark">{t('preferences.dark')}</option>
                 </select>
               </div>
             </div>
@@ -272,7 +280,7 @@ export function PreferencesDialog({ open, onClose }: PreferencesDialogProps) {
             <div className="space-y-4">
               <div>
                 <label className="block text-xs font-medium text-surface-600 dark:text-surface-400 mb-1">
-                  Render ahead pages ({values.renderAheadPages})
+                  {t('preferences.renderAheadPages', { value: values.renderAheadPages })}
                 </label>
                 <input
                   type="range"
@@ -286,7 +294,7 @@ export function PreferencesDialog({ open, onClose }: PreferencesDialogProps) {
 
               <div>
                 <label className="block text-xs font-medium text-surface-600 dark:text-surface-400 mb-1">
-                  Max canvas memory ({values.maxCanvasMemoryMb} MB)
+                  {t('preferences.maxCanvasMemory', { value: values.maxCanvasMemoryMb })}
                 </label>
                 <input
                   type="range"
@@ -305,7 +313,7 @@ export function PreferencesDialog({ open, onClose }: PreferencesDialogProps) {
             <div className="space-y-4">
               <div>
                 <label className="block text-xs font-medium text-surface-600 dark:text-surface-400 mb-1">
-                  Default language
+                  {t('preferences.defaultLanguage')}
                 </label>
                 <select
                   value={values.ocrDefaultLanguage}
@@ -327,7 +335,7 @@ export function PreferencesDialog({ open, onClose }: PreferencesDialogProps) {
 
               <div>
                 <label className="block text-xs font-medium text-surface-600 dark:text-surface-400 mb-1">
-                  Default DPI ({values.ocrDefaultDpi})
+                  {t('preferences.defaultDpi', { value: values.ocrDefaultDpi })}
                 </label>
                 <input
                   type="range"
@@ -338,9 +346,7 @@ export function PreferencesDialog({ open, onClose }: PreferencesDialogProps) {
                   onChange={(e) => update('ocrDefaultDpi', parseInt(e.target.value, 10))}
                   className="w-full accent-brand-500"
                 />
-                <p className="text-xs text-surface-400 mt-1">
-                  Higher DPI gives better accuracy but takes longer.
-                </p>
+                <p className="text-xs text-surface-400 mt-1">{t('preferences.higherDpiHint')}</p>
               </div>
             </div>
           )}

@@ -1,4 +1,5 @@
 import { useCallback, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Dialog } from '../ui/Dialog';
 import { Button } from '../ui/Button';
 import { Spinner } from '../ui/Spinner';
@@ -18,6 +19,7 @@ export function PasswordDialog({
   fileName,
   onSuccess,
 }: PasswordDialogProps) {
+  const { t } = useTranslation();
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -67,7 +69,7 @@ export function PasswordDialog({
       footer={
         <div className="flex items-center gap-2">
           <Button variant="secondary" onClick={onClose} disabled={loading}>
-            Cancel
+            {t('common.cancel')}
           </Button>
           <Button variant="primary" onClick={handleSubmit} disabled={loading}>
             {loading ? (
@@ -76,7 +78,7 @@ export function PasswordDialog({
                 Opening...
               </span>
             ) : (
-              'Open'
+              t('common.open')
             )}
           </Button>
         </div>

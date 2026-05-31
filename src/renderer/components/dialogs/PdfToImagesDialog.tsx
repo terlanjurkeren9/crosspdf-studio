@@ -1,4 +1,5 @@
 import { useCallback, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Dialog } from '../ui/Dialog';
 import { Button } from '../ui/Button';
 import { Spinner } from '../ui/Spinner';
@@ -22,6 +23,7 @@ export function PdfToImagesDialog({
   numPages,
   password,
 }: PdfToImagesDialogProps) {
+  const { t } = useTranslation();
   const [status, setStatus] = useState<Status>('idle');
   const [pageRange, setPageRange] = useState(`1-${numPages}`);
   const [dpi, setDpi] = useState(144);
@@ -138,7 +140,7 @@ export function PdfToImagesDialog({
   const footer = (
     <>
       <Button variant="secondary" onClick={handleClose}>
-        {status === 'done' ? 'Close' : 'Cancel'}
+        {status === 'done' ? t('common.close') : t('common.cancel')}
       </Button>
       {status !== 'done' && (
         <Button variant="primary" onClick={handleConvert} disabled={status === 'converting'}>

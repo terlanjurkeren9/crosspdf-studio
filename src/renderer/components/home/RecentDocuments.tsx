@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { FileText, FolderOpen } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import type { RecentDocumentResult } from '../../../shared/types/ipc.types';
 
 interface RecentDocumentsProps {
@@ -7,6 +8,7 @@ interface RecentDocumentsProps {
 }
 
 export function RecentDocuments({ onOpenFile }: RecentDocumentsProps) {
+  const { t } = useTranslation();
   const [recentDocs, setRecentDocs] = useState<RecentDocumentResult[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -40,7 +42,7 @@ export function RecentDocuments({ onOpenFile }: RecentDocumentsProps) {
     <div className="flex h-full min-h-0 flex-col">
       <div className="mb-3 flex items-center justify-between">
         <h3 className="text-xs font-semibold uppercase tracking-wider text-surface-500">
-          Recent documents
+          {t('home.recentDocumentsTitle')}
         </h3>
         <span className="text-xs text-surface-400">{recentDocs.length || ''}</span>
       </div>
@@ -57,7 +59,7 @@ export function RecentDocuments({ onOpenFile }: RecentDocumentsProps) {
       )}
 
       {!loading && error && (
-        <p className="text-sm text-surface-500">Recent documents unavailable.</p>
+        <p className="text-sm text-surface-500">{t('home.recentDocumentsUnavailable')}</p>
       )}
 
       {!loading && !error && recentDocs.length === 0 && (
@@ -67,9 +69,9 @@ export function RecentDocuments({ onOpenFile }: RecentDocumentsProps) {
           </div>
           <div>
             <p className="text-sm font-medium text-surface-700 dark:text-surface-200">
-              No recent files
+              {t('home.noRecentFiles')}
             </p>
-            <p className="mt-1 text-xs">Open a PDF to start building your workspace.</p>
+            <p className="mt-1 text-xs">{t('home.startWorkspace')}</p>
           </div>
         </div>
       )}

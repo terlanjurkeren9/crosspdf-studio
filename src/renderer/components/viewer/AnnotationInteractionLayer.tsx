@@ -35,8 +35,8 @@ interface AnnotationInteractionLayerProps {
   ) => void;
 }
 
-const MOVABLE_TYPES = new Set(['stamp', 'sticky-note', 'free-text']);
-const RESIZABLE_TYPES = new Set(['stamp', 'free-text']);
+const MOVABLE_TYPES = new Set(['stamp', 'sticky-note', 'free-text', 'form-field']);
+const RESIZABLE_TYPES = new Set(['stamp', 'free-text', 'form-field']);
 
 function isMovable(ann: Annotation): boolean {
   return MOVABLE_TYPES.has(ann.type);
@@ -62,6 +62,7 @@ export function AnnotationInteractionLayer({
   const previewRef = useRef<{ id: string; rect: PdfRect } | null>(null);
   const lastClickRef = useRef<{ id: string; time: number }>({ id: '', time: 0 });
   const clickTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const selectedOnDownRef = useRef<string | null>(null);
 
   const zoomRef = useRef(zoom);
   const annotationsRef = useRef(annotations);
@@ -112,6 +113,7 @@ export function AnnotationInteractionLayer({
 
     function onPDown(e: PointerEvent) {
       if (!isInteractive) return;
+      selectedOnDownRef.current = null;
       const target = e.target as HTMLElement;
       const handleEl = target.closest('[data-annot-handle]') as HTMLElement | null;
       const moveEl = target.closest('[data-annot-move]') as HTMLElement | null;
@@ -146,13 +148,8 @@ export function AnnotationInteractionLayer({
         const ann = annotationsRef.current.find((a) => a.id === id);
         if (!ann || !isMovable(ann)) return;
 
-        if (!selectedIdsRef.current.has(id)) {
-          // Unselected → select immediately (no double-click tracking needed)
-          onClickRef.current?.(id);
-          return;
-        }
+        const wasSelected = selectedIdsRef.current.has(id);
 
-        // Already selected → start drag tracking
         dragRef.current = {
           annotationId: id,
           type: 'move',
@@ -163,6 +160,12 @@ export function AnnotationInteractionLayer({
         };
         didDragRef.current = false;
         previewRef.current = null;
+
+        if (!wasSelected) {
+          onClickRef.current?.(id);
+          selectedOnDownRef.current = id;
+        }
+
         try {
           node.setPointerCapture(1);
         } catch {
@@ -262,6 +265,7 @@ export function AnnotationInteractionLayer({
         if (clickTimerRef.current) clearTimeout(clickTimerRef.current);
         clickTimerRef.current = null;
         lastClickRef.current = { id: '', time: 0 };
+        selectedOnDownRef.current = null;
         onDoubleClickRef.current?.(id);
       } else {
         // First click — wait for possible second click
@@ -269,7 +273,11 @@ export function AnnotationInteractionLayer({
         lastClickRef.current = { id, time: now };
         clickTimerRef.current = setTimeout(() => {
           lastClickRef.current = { id: '', time: 0 };
-          onClickRef.current?.(id);
+          // Don't fire onClick if already selected on pointerdown
+          if (selectedOnDownRef.current !== id) {
+            onClickRef.current?.(id);
+          }
+          selectedOnDownRef.current = null;
         }, DOUBLE_CLICK_MS);
       }
     }

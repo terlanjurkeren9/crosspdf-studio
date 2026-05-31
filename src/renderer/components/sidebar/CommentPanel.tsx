@@ -1,5 +1,6 @@
 import { useAnnotationStore } from '../../stores/annotation.store';
 import type { Annotation } from '../../types/annotation.types';
+import { useTranslation } from 'react-i18next';
 
 const EMPTY_ANNOTATIONS: Annotation[] = [];
 
@@ -65,6 +66,7 @@ function annotationColor(a: Annotation): string {
 }
 
 export function CommentPanel({ tabId, onNavigateToPage }: CommentPanelProps) {
+  const { t } = useTranslation();
   const annotations = useAnnotationStore((s) =>
     tabId ? (s.annotationsByTab[tabId] ?? EMPTY_ANNOTATIONS) : EMPTY_ANNOTATIONS
   );
@@ -73,7 +75,7 @@ export function CommentPanel({ tabId, onNavigateToPage }: CommentPanelProps) {
   const deselectAll = useAnnotationStore((s) => s.deselectAll);
 
   if (!tabId) {
-    return <div className="p-3 text-xs text-surface-400">Open a document to view annotations</div>;
+    return <div className="p-3 text-xs text-surface-400">{t('sidebar.openForAnnotations')}</div>;
   }
 
   if (annotations.length === 0) {

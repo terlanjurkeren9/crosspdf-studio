@@ -2,6 +2,8 @@ export function Spinner({ className = '', size }: { className?: string; size?: '
   const sizeClass = size === 'sm' ? 'h-4 w-4' : 'h-5 w-5';
   return (
     <svg
+      role="status"
+      aria-label="Loading"
       className={`animate-spin ${sizeClass} text-surface-400 ${className}`}
       xmlns="http://www.w3.org/2000/svg"
       fill="none"

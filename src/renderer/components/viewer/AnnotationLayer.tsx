@@ -102,6 +102,7 @@ export function AnnotationLayer({
           <div
             key={`hit-${a.id}`}
             data-annotation-hit={a.id}
+            data-annotation-type={a.type}
             className="absolute"
             style={{
               left: x,
@@ -400,6 +401,44 @@ function AnnotationRenderer({
             strokeDasharray="3,2"
           />
         )}
+      </g>
+    );
+  }
+
+  if (annotation.type === 'form-field') {
+    const typeIcons: Record<string, string> = {
+      text: 'T',
+      checkbox: '☑',
+      dropdown: '▼',
+      radiogroup: '◉',
+    };
+    const label = annotation.fieldName || '';
+    const typeIcon = typeIcons[annotation.fieldType] || 'T';
+    const displayLabel = label ? `${typeIcon} ${label}` : typeIcon;
+
+    return (
+      <g>
+        <rect
+          x={pixelRect.x}
+          y={pixelRect.y}
+          width={pixelRect.width}
+          height={pixelRect.height}
+          fill="rgba(59, 130, 246, 0.1)"
+          stroke={selected ? '#3b82f6' : 'rgba(59, 130, 246, 0.6)'}
+          strokeWidth={selected ? 2 : 1}
+          strokeDasharray={selected ? 'none' : '4,2'}
+          rx={2}
+        />
+        <text
+          x={pixelRect.x + 4}
+          y={pixelRect.y + pixelRect.height / 2}
+          fontSize={Math.max(10, 12 * zoom)}
+          fill="#3b82f6"
+          dominantBaseline="middle"
+          style={{ pointerEvents: 'none' }}
+        >
+          {displayLabel}
+        </text>
       </g>
     );
   }

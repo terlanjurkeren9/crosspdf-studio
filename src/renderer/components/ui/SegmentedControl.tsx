@@ -15,6 +15,7 @@ export function SegmentedControl<T extends string>({
 }: SegmentedControlProps<T>) {
   return (
     <div
+      role="group"
       className={`inline-flex h-8 items-center rounded-lg border border-surface-200 bg-surface-100 p-0.5 dark:border-surface-700 dark:bg-surface-800 ${className}`}
     >
       {options.map((option) => {
@@ -24,6 +25,7 @@ export function SegmentedControl<T extends string>({
             key={option.value}
             type="button"
             disabled={disabled}
+            aria-pressed={active}
             onClick={() => onChange(option.value)}
             title={option.title ?? option.label}
             className={`h-[26px] rounded-md px-2.5 text-xs font-medium transition-all duration-150 disabled:opacity-40 ${

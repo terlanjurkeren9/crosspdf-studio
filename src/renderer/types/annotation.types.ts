@@ -10,7 +10,8 @@ export type AnnotationType =
   | 'line'
   | 'arrow'
   | 'redaction'
-  | 'stamp';
+  | 'stamp'
+  | 'form-field';
 
 export type AnnotationTool = 'select' | AnnotationType;
 
@@ -100,6 +101,16 @@ export interface StampAnnotation extends AnnotationBase {
   imageHeight: number;
 }
 
+export interface FormFieldAnnotation extends AnnotationBase {
+  type: 'form-field';
+  fieldName: string;
+  fieldType: 'text' | 'checkbox' | 'dropdown' | 'radiogroup';
+  required: boolean;
+  defaultValue?: string;
+  options?: string[];
+  maxLength?: number;
+}
+
 export type Annotation =
   | HighlightAnnotation
   | UnderlineAnnotation
@@ -112,7 +123,8 @@ export type Annotation =
   | LineAnnotation
   | ArrowAnnotation
   | RedactionAnnotation
-  | StampAnnotation;
+  | StampAnnotation
+  | FormFieldAnnotation;
 
 export type TextMarkupType = 'highlight' | 'underline' | 'strikeout';
 
@@ -136,6 +148,10 @@ export function isRedaction(a: Annotation): a is RedactionAnnotation {
 
 export function isStamp(a: Annotation): a is StampAnnotation {
   return a.type === 'stamp';
+}
+
+export function isFormField(a: Annotation): a is FormFieldAnnotation {
+  return a.type === 'form-field';
 }
 
 export const DEFAULT_ANNOTATION_COLOR = '#FFEB3B';
@@ -172,5 +188,7 @@ export function toolCursor(tool: AnnotationTool): string {
       return 'crosshair';
     case 'stamp':
       return 'cell';
+    case 'form-field':
+      return 'crosshair';
   }
 }

@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react';
 import type { PDFDocumentProxy } from 'pdfjs-dist';
 import { ChevronRight, MessageSquareText, Search, LayoutGrid } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import { useUIStore } from '../../stores/ui.store';
 import { ThumbnailPanel } from './ThumbnailPanel';
 import { SearchPanel } from './SearchPanel';
@@ -17,10 +18,10 @@ interface SidebarProps {
   activeTabId?: string | null;
 }
 
-const PANELS: Record<PanelType, { label: string; icon: typeof LayoutGrid }> = {
-  thumbnails: { label: 'Pages', icon: LayoutGrid },
-  search: { label: 'Search', icon: Search },
-  comments: { label: 'Comments', icon: MessageSquareText },
+const PANELS: Record<PanelType, { labelKey: string; icon: typeof LayoutGrid }> = {
+  thumbnails: { labelKey: 'sidebar.pages', icon: LayoutGrid },
+  search: { labelKey: 'sidebar.search', icon: Search },
+  comments: { labelKey: 'sidebar.comments', icon: MessageSquareText },
 };
 
 function RailButton({
@@ -32,8 +33,10 @@ function RailButton({
   activePanel: PanelType | null;
   onClick: () => void;
 }) {
+  const { t } = useTranslation();
   const isActive = activePanel === panel;
   const Icon = PANELS[panel].icon;
+  const label = t(PANELS[panel].labelKey);
   return (
     <button
       type="button"
@@ -43,8 +46,8 @@ function RailButton({
           ? 'bg-brand-50 text-brand-600 ring-1 ring-brand-200 shadow-sm dark:bg-brand-950/60 dark:text-brand-400 dark:ring-brand-800'
           : 'text-surface-400 hover:bg-surface-100 hover:text-surface-600 dark:text-surface-500 dark:hover:bg-surface-800 dark:hover:text-surface-300'
       }`}
-      title={PANELS[panel].label}
-      aria-label={PANELS[panel].label}
+      title={label}
+      aria-label={label}
       aria-pressed={isActive}
     >
       <Icon className="h-4 w-4" />
@@ -60,6 +63,7 @@ export function Sidebar({
   searchAutoFocus = false,
   activeTabId,
 }: SidebarProps) {
+  const { t } = useTranslation();
   const sidebarOpen = useUIStore((s) => s.sidebarOpen);
   const sidebarWidth = useUIStore((s) => s.sidebarWidth);
   const activePanel = useUIStore((s) => s.sidebarActivePanel);
@@ -79,8 +83,8 @@ export function Sidebar({
           type="button"
           onClick={() => setSidebarPanel(lastPanelRef.current || 'thumbnails')}
           className="absolute left-0 top-[104px] z-[90] flex h-8 w-6 items-center justify-center rounded-r-lg border border-l-0 border-surface-200 bg-white text-surface-400 shadow-sm hover:text-surface-600 dark:border-surface-700 dark:bg-surface-800 dark:hover:text-surface-300"
-          title="Show sidebar"
-          aria-label="Show sidebar"
+          title={t('sidebar.showSidebar')}
+          aria-label={t('sidebar.showSidebar')}
         >
           <ChevronRight className="h-3.5 w-3.5" />
         </button>
@@ -106,7 +110,7 @@ export function Sidebar({
         >
           <div className="flex h-10 shrink-0 items-center border-b border-surface-200 px-3.5 dark:border-surface-700">
             <h2 className="text-[11px] font-semibold uppercase tracking-widest text-surface-400">
-              {PANELS[panel].label}
+              {t(PANELS[panel].labelKey)}
             </h2>
           </div>
 
@@ -121,9 +125,7 @@ export function Sidebar({
               />
             )}
             {panel === 'thumbnails' && !pdfDocument && (
-              <div className="p-4 text-xs text-surface-400">
-                Open a document to view thumbnails.
-              </div>
+              <div className="p-4 text-xs text-surface-400">{t('sidebar.openForThumbnails')}</div>
             )}
 
             {panel === 'search' && (

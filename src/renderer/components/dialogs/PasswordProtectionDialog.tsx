@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Dialog } from '../ui/Dialog';
 import { Button } from '../ui/Button';
 import { Spinner } from '../ui/Spinner';
@@ -20,6 +21,7 @@ export function PasswordProtectionDialog({
   fileName,
   onPasswordChanged,
 }: PasswordProtectionDialogProps) {
+  const { t } = useTranslation();
   const [status, setStatus] = useState<Status>('loading');
   const [isEncrypted, setIsEncrypted] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
@@ -174,7 +176,7 @@ export function PasswordProtectionDialog({
       footer={
         <div className="flex items-center gap-2">
           <Button variant="secondary" onClick={handleClose}>
-            Close
+            {t('common.close')}
           </Button>
         </div>
       }
@@ -264,7 +266,7 @@ export function PasswordProtectionDialog({
                 </div>
                 <div className="flex gap-2">
                   <Button variant="secondary" className="text-xs py-1.5 px-3" onClick={resetForms}>
-                    Cancel
+                    {t('common.cancel')}
                   </Button>
                   <Button
                     variant="primary"
@@ -333,7 +335,7 @@ export function PasswordProtectionDialog({
                 </div>
                 <div className="flex gap-2">
                   <Button variant="secondary" className="text-xs py-1.5 px-3" onClick={resetForms}>
-                    Cancel
+                    {t('common.cancel')}
                   </Button>
                   <Button
                     variant="primary"

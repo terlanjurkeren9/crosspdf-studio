@@ -6,6 +6,7 @@ import { PageTextLayer } from './PageTextLayer';
 import { AnnotationLayer } from './AnnotationLayer';
 import { RedactionDrawLayer } from './RedactionDrawLayer';
 import { AnnotationInteractionLayer } from './AnnotationInteractionLayer';
+import { FormFieldDrawLayer } from './FormFieldDrawLayer';
 import { Spinner } from '../ui/Spinner';
 import type { Annotation } from '../../types/annotation.types';
 
@@ -26,6 +27,11 @@ interface PageCanvasProps {
   onPageClick?: (e: React.MouseEvent) => void;
   // Redaction
   onRedactionDrawn?: (
+    pageNumber: number,
+    rect: { x: number; y: number; width: number; height: number }
+  ) => void;
+  // Form field draw
+  onFormFieldDrawn?: (
     pageNumber: number,
     rect: { x: number; y: number; width: number; height: number }
   ) => void;
@@ -55,6 +61,7 @@ const PageCanvasInner = memo(function PageCanvas({
   onAnnotationDoubleClick,
   onPageClick,
   onRedactionDrawn,
+  onFormFieldDrawn,
   onAnnotationMoved,
   onAnnotationResized,
 }: PageCanvasProps) {
@@ -153,6 +160,14 @@ const PageCanvasInner = memo(function PageCanvas({
               zoom={zoom}
               active={(activeTool ?? 'select') === 'redaction'}
               onRedactionDrawn={onRedactionDrawn}
+            />
+          )}
+          {onFormFieldDrawn && (
+            <FormFieldDrawLayer
+              pageNumber={pageNumber}
+              zoom={zoom}
+              active={(activeTool ?? 'select') === 'form-field'}
+              onFormFieldDrawn={onFormFieldDrawn}
             />
           )}
           {annotations && onAnnotationMoved && onAnnotationResized && (

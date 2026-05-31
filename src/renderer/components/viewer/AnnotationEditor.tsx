@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
+import { useTranslation } from 'react-i18next';
 
 interface AnnotationEditorProps {
   initialContent: string;
@@ -15,6 +16,7 @@ export function AnnotationEditor({
   onCancel,
   anchorRect,
 }: AnnotationEditorProps) {
+  const { t } = useTranslation();
   const [value, setValue] = useState(initialContent);
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
@@ -82,7 +84,7 @@ export function AnnotationEditor({
             onClick={onCancel}
             className="rounded-md px-2.5 py-1 text-xs text-surface-500 hover:bg-surface-100 dark:hover:bg-surface-800"
           >
-            Cancel
+            {t('common.cancel')}
           </button>
           <button
             type="button"
@@ -91,7 +93,7 @@ export function AnnotationEditor({
             }}
             className="rounded-md bg-brand-600 px-3 py-1 text-xs font-medium text-white hover:bg-brand-700"
           >
-            Save
+            {t('common.save')}
           </button>
         </div>
         <span className="block mt-1 text-[10px] text-surface-400 text-right">

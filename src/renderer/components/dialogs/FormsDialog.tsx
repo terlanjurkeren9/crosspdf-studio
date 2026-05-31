@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Dialog } from '../ui/Dialog';
 import { Button } from '../ui/Button';
 import { Spinner } from '../ui/Spinner';
@@ -15,6 +16,7 @@ interface FormsDialogProps {
 type Status = 'loading' | 'ready' | 'saving' | 'error' | 'saved';
 
 export function FormsDialog({ open, onClose, filePath, fileName }: FormsDialogProps) {
+  const { t } = useTranslation();
   const [status, setStatus] = useState<Status>('loading');
   const [fields, setFields] = useState<FormFieldInfo[]>([]);
   const [fieldValues, setFieldValues] = useState<Record<string, string>>({});
@@ -216,7 +218,7 @@ export function FormsDialog({ open, onClose, filePath, fileName }: FormsDialogPr
             </span>
           ) : null}
           <Button variant="secondary" onClick={handleClose} disabled={isLoading}>
-            {status === 'saved' ? 'Close' : 'Cancel'}
+            {status === 'saved' ? t('common.close') : t('common.cancel')}
           </Button>
           {status === 'ready' && editableFields.length > 0 && (
             <Button variant="primary" onClick={handleSave} disabled={!hasChanges}>

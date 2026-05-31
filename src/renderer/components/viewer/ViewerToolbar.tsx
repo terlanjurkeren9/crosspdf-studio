@@ -1,5 +1,6 @@
 import { useCallback } from 'react';
 import type { ChangeEvent, ComponentType, KeyboardEvent } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   ChevronLeft,
   ChevronRight,
@@ -14,6 +15,7 @@ import {
   Images,
   LockKeyhole,
   MousePointer2,
+  PenTool,
   RotateCcw,
   RotateCw,
   Rows3,
@@ -23,6 +25,7 @@ import {
   Split,
   StickyNote,
   Strikethrough,
+  TextCursorInput,
   Trash2,
   Type,
   Underline,
@@ -79,27 +82,23 @@ interface ViewerToolbarProps {
   onPassword?: () => void;
   onPdfToImages?: () => void;
   onImagesToPdf?: () => void;
+  onSignature?: () => void;
 }
 
 const ANNOTATION_TOOLS: {
   tool: AnnotationTool;
-  label: string;
+  labelKey: string;
   icon: ComponentType<{ className?: string }>;
 }[] = [
-  { tool: 'select', label: 'Select', icon: MousePointer2 },
-  { tool: 'highlight', label: 'Highlight', icon: Highlighter },
-  { tool: 'underline', label: 'Underline', icon: Underline },
-  { tool: 'strikeout', label: 'Strikeout', icon: Strikethrough },
-  { tool: 'sticky-note', label: 'Sticky Note', icon: StickyNote },
-  { tool: 'free-text', label: 'Add Text', icon: Type },
-  { tool: 'stamp', label: 'Add Image', icon: ImagePlus },
-  { tool: 'redaction', label: 'Redaction', icon: ShieldOff },
-];
-
-const FIT_OPTIONS: { value: FitMode; label: string; title: string }[] = [
-  { value: 'actual', label: '100%', title: fitModeLabel('actual') },
-  { value: 'fit-width', label: 'Width', title: fitModeLabel('fit-width') },
-  { value: 'fit-page', label: 'Page', title: fitModeLabel('fit-page') },
+  { tool: 'select', labelKey: 'viewer.select', icon: MousePointer2 },
+  { tool: 'highlight', labelKey: 'viewer.highlight', icon: Highlighter },
+  { tool: 'underline', labelKey: 'viewer.underline', icon: Underline },
+  { tool: 'strikeout', labelKey: 'viewer.strikeout', icon: Strikethrough },
+  { tool: 'sticky-note', labelKey: 'viewer.stickyNote', icon: StickyNote },
+  { tool: 'free-text', labelKey: 'viewer.addText', icon: Type },
+  { tool: 'stamp', labelKey: 'viewer.addImage', icon: ImagePlus },
+  { tool: 'redaction', labelKey: 'viewer.redaction', icon: ShieldOff },
+  { tool: 'form-field', labelKey: 'viewer.createFormField', icon: TextCursorInput },
 ];
 
 export function ViewerToolbar({
@@ -140,7 +139,9 @@ export function ViewerToolbar({
   onPassword,
   onPdfToImages,
   onImagesToPdf,
+  onSignature,
 }: ViewerToolbarProps) {
+  const { t } = useTranslation();
   const handleZoomSlider = useCallback(
     (e: ChangeEvent<HTMLInputElement>) => {
       const pct = parseInt(e.target.value, 10);
@@ -152,15 +153,24 @@ export function ViewerToolbar({
   const zoomPct = Math.round(zoom * 100);
   const canPrev = currentPage <= 1 || disabled;
   const canNext = currentPage >= numPages || disabled;
+  const fitOptions: { value: FitMode; label: string; title: string }[] = [
+    { value: 'actual', label: '100%', title: fitModeLabel('actual') },
+    { value: 'fit-width', label: t('viewer.widthFit'), title: fitModeLabel('fit-width') },
+    { value: 'fit-page', label: t('viewer.pageFit'), title: fitModeLabel('fit-page') },
+  ];
 
   return (
     <div className="flex h-11 shrink-0 select-none items-center gap-2 overflow-x-auto border-b border-surface-200 bg-white px-2.5 dark:border-surface-700 dark:bg-surface-900">
       {/* File */}
-      <ToolbarGroup label="File">
-        <IconButton label="Close document" onClick={onClose} disabled={disabled && numPages === 0}>
+      <ToolbarGroup label={t('viewer.file')}>
+        <IconButton
+          label={t('viewer.closeDocument')}
+          onClick={onClose}
+          disabled={disabled && numPages === 0}
+        >
           <X className="h-4 w-4" />
         </IconButton>
-        <IconButton label="Open another document" onClick={onOpenAnother}>
+        <IconButton label={t('viewer.openAnotherDocument')} onClick={onOpenAnother}>
           <FolderOpen className="h-4 w-4" />
         </IconButton>
         <span
@@ -172,30 +182,30 @@ export function ViewerToolbar({
       </ToolbarGroup>
 
       {/* View */}
-      <ToolbarGroup label="View">
+      <ToolbarGroup label={t('viewer.view')}>
         <SegmentedControl
           value={viewMode}
           disabled={disabled}
           onChange={onViewMode}
           options={[
-            { value: 'single', label: 'Single' },
-            { value: 'continuous', label: 'Scroll' },
+            { value: 'single', label: t('viewer.single') },
+            { value: 'continuous', label: t('viewer.continuous') },
           ]}
         />
         <SegmentedControl
           value={fitMode}
           disabled={disabled}
           onChange={onFitMode}
-          options={FIT_OPTIONS}
+          options={fitOptions}
         />
       </ToolbarGroup>
 
       {/* Annotate */}
-      <ToolbarGroup label="Annotate">
-        {ANNOTATION_TOOLS.map(({ tool, label, icon: Icon }) => (
+      <ToolbarGroup label={t('viewer.annotate')}>
+        {ANNOTATION_TOOLS.map(({ tool, labelKey, icon: Icon }) => (
           <IconButton
             key={tool}
-            label={label}
+            label={t(labelKey)}
             active={activeTool === tool}
             onClick={() => onToolChange(tool)}
             disabled={disabled}
@@ -207,69 +217,87 @@ export function ViewerToolbar({
       </ToolbarGroup>
 
       {/* Pages */}
-      <ToolbarGroup label="Pages">
+      <ToolbarGroup label={t('viewer.pages')}>
         {onDeletePage && (
-          <IconButton label="Delete current page" onClick={onDeletePage} disabled={disabled} danger>
+          <IconButton
+            label={t('viewer.deleteCurrentPage')}
+            onClick={onDeletePage}
+            disabled={disabled}
+            danger
+          >
             <Trash2 className="h-4 w-4" />
           </IconButton>
         )}
         {onRotateCCW && (
-          <IconButton label="Rotate left" onClick={onRotateCCW} disabled={disabled}>
+          <IconButton label={t('viewer.rotateLeft')} onClick={onRotateCCW} disabled={disabled}>
             <RotateCcw className="h-4 w-4" />
           </IconButton>
         )}
         {onRotateCW && (
-          <IconButton label="Rotate right" onClick={onRotateCW} disabled={disabled}>
+          <IconButton label={t('viewer.rotateRight')} onClick={onRotateCW} disabled={disabled}>
             <RotateCw className="h-4 w-4" />
           </IconButton>
         )}
         {onMerge && (
-          <IconButton label="Merge PDF" onClick={onMerge}>
+          <IconButton label={t('viewer.mergePdf')} onClick={onMerge}>
             <Combine className="h-4 w-4" />
           </IconButton>
         )}
         {onSplit && (
-          <IconButton label="Split PDF" onClick={onSplit}>
+          <IconButton label={t('viewer.splitPdf')} onClick={onSplit}>
             <Split className="h-4 w-4" />
           </IconButton>
         )}
         {onReorder && (
-          <IconButton label="Reorder pages" onClick={onReorder}>
+          <IconButton label={t('viewer.reorderPages')} onClick={onReorder}>
             <Rows3 className="h-4 w-4" />
           </IconButton>
         )}
         {onExtract && (
-          <IconButton label="Extract pages" onClick={onExtract}>
+          <IconButton label={t('viewer.extractPages')} onClick={onExtract}>
             <Scissors className="h-4 w-4" />
           </IconButton>
         )}
       </ToolbarGroup>
 
       {/* Convert & Secure */}
-      <ToolbarGroup label="Convert & Secure">
+      <ToolbarGroup label={t('viewer.convertSecure')}>
         {onOcr && (
-          <IconButton label="OCR" onClick={onOcr} disabled={disabled}>
+          <IconButton label={t('viewer.ocr')} onClick={onOcr} disabled={disabled}>
             <ScanText className="h-4 w-4" />
           </IconButton>
         )}
         {onForms && (
-          <IconButton label="Forms" onClick={onForms} disabled={disabled}>
+          <IconButton label={t('viewer.forms')} onClick={onForms} disabled={disabled}>
             <FileOutput className="h-4 w-4" />
           </IconButton>
         )}
         {onPassword && (
-          <IconButton label="Password Protection" onClick={onPassword} disabled={disabled}>
+          <IconButton
+            label={t('viewer.passwordProtection')}
+            onClick={onPassword}
+            disabled={disabled}
+          >
             <LockKeyhole className="h-4 w-4" />
           </IconButton>
         )}
         {onPdfToImages && (
-          <IconButton label="PDF to Images" onClick={onPdfToImages} disabled={disabled}>
+          <IconButton label={t('viewer.pdfToImages')} onClick={onPdfToImages} disabled={disabled}>
             <FileImage className="h-4 w-4" />
           </IconButton>
         )}
         {onImagesToPdf && (
-          <IconButton label="Images to PDF" onClick={onImagesToPdf}>
+          <IconButton label={t('viewer.imagesToPdf')} onClick={onImagesToPdf}>
             <Images className="h-4 w-4" />
+          </IconButton>
+        )}
+        {onSignature && (
+          <IconButton
+            label={t('viewer.digitalSignature')}
+            onClick={onSignature}
+            disabled={disabled}
+          >
+            <PenTool className="h-4 w-4" />
           </IconButton>
         )}
       </ToolbarGroup>
@@ -277,11 +305,11 @@ export function ViewerToolbar({
       <div className="flex-1" />
 
       {/* Navigation */}
-      <ToolbarGroup label="Navigation" className="border-r-0 pr-0">
-        <IconButton label="First page" onClick={onFirstPage} disabled={canPrev}>
+      <ToolbarGroup label={t('viewer.navigation')} className="border-r-0 pr-0">
+        <IconButton label={t('viewer.firstPage')} onClick={onFirstPage} disabled={canPrev}>
           <ChevronsLeft className="h-4 w-4" />
         </IconButton>
-        <IconButton label="Previous page" onClick={onPrevPage} disabled={canPrev}>
+        <IconButton label={t('viewer.previousPage')} onClick={onPrevPage} disabled={canPrev}>
           <ChevronLeft className="h-4 w-4" />
         </IconButton>
         <div className="flex items-center gap-1">
@@ -295,21 +323,25 @@ export function ViewerToolbar({
             onBlur={onPageInputBlur}
             disabled={disabled}
             className="h-7 w-12 rounded-lg border border-surface-200 bg-white px-1 text-center text-xs tabular-nums text-surface-700 outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500/20 dark:border-surface-600 dark:bg-surface-800 dark:text-surface-200"
-            aria-label="Page number"
+            aria-label={t('viewer.pageNumber')}
           />
           <span className="w-10 text-xs tabular-nums text-surface-400">/ {numPages}</span>
         </div>
-        <IconButton label="Next page" onClick={onNextPage} disabled={canNext}>
+        <IconButton label={t('viewer.nextPage')} onClick={onNextPage} disabled={canNext}>
           <ChevronRight className="h-4 w-4" />
         </IconButton>
-        <IconButton label="Last page" onClick={onLastPage} disabled={canNext}>
+        <IconButton label={t('viewer.lastPage')} onClick={onLastPage} disabled={canNext}>
           <ChevronsRight className="h-4 w-4" />
         </IconButton>
       </ToolbarGroup>
 
       {/* Zoom */}
-      <ToolbarGroup label="Zoom" className="border-r-0 pr-0">
-        <IconButton label="Zoom out" onClick={onZoomOut} disabled={zoom <= ZOOM_MIN || disabled}>
+      <ToolbarGroup label={t('viewer.zoom')} className="border-r-0 pr-0">
+        <IconButton
+          label={t('viewer.zoomOut')}
+          onClick={onZoomOut}
+          disabled={zoom <= ZOOM_MIN || disabled}
+        >
           <ZoomOut className="h-4 w-4" />
         </IconButton>
         <input
@@ -321,12 +353,16 @@ export function ViewerToolbar({
           onChange={handleZoomSlider}
           disabled={disabled}
           className="h-1 w-20 disabled:opacity-35"
-          aria-label="Zoom slider"
+          aria-label={t('viewer.zoomSlider')}
         />
         <span className="w-11 text-center text-xs tabular-nums text-surface-500 dark:text-surface-400">
           {formatZoomPercent(zoom)}
         </span>
-        <IconButton label="Zoom in" onClick={onZoomIn} disabled={zoom >= ZOOM_MAX || disabled}>
+        <IconButton
+          label={t('viewer.zoomIn')}
+          onClick={onZoomIn}
+          disabled={zoom >= ZOOM_MAX || disabled}
+        >
           <ZoomIn className="h-4 w-4" />
         </IconButton>
       </ToolbarGroup>

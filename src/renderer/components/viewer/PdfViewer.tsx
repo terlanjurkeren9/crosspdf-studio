@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useImperativeHandle, useMemo, useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import type { PDFDocumentProxy, RenderTask } from 'pdfjs-dist';
 import { usePdfDocument } from '../../hooks/usePdfDocument';
 import { useResizeObserver } from '../../hooks/useResizeObserver';
@@ -26,8 +27,11 @@ import type {
 } from '../../types/annotation.types';
 import { isRedaction, isStamp } from '../../types/annotation.types';
 import { RedactionDrawLayer } from './RedactionDrawLayer';
+import { FormFieldDrawLayer } from './FormFieldDrawLayer';
 import { AnnotationInteractionLayer } from './AnnotationInteractionLayer';
-import { applyStamps } from '../../services/pdf-ops.service';
+import { applyStamps, addFormFields } from '../../services/pdf-ops.service';
+import type { FormFieldSpec } from '../../services/pdf-ops.service';
+import { FormFieldSettingsDialog } from '../dialogs/FormFieldSettingsDialog';
 import { screenPointToPdf } from '../../lib/pdf-coordinates';
 import { normalizeImageToSafeDataUrl } from '../../lib/image-normalize';
 
@@ -51,6 +55,7 @@ interface PdfViewerProps {
 }
 
 export function PdfViewer({ tab, onOpenAnother, onPdfDocumentLoaded, viewerRef }: PdfViewerProps) {
+  const { t } = useTranslation();
   const updateTabState = useDocumentStore((s) => s.updateTabState);
   const closeTab = useDocumentStore((s) => s.closeTab);
 
@@ -85,6 +90,16 @@ export function PdfViewer({ tab, onOpenAnother, onPdfDocumentLoaded, viewerRef }
     anchorRect: DOMRect | null;
   } | null>(null);
 
+  const [editingFormField, setEditingFormField] = useState<{
+    id: string;
+    fieldName: string;
+    fieldType: 'text' | 'checkbox' | 'dropdown' | 'radiogroup';
+    required: boolean;
+    defaultValue?: string;
+    options?: string[];
+    maxLength?: number;
+  } | null>(null);
+
   const handleAnnotationDoubleClick = useCallback(
     (id: string) => {
       const ann = annotationsForTab.find((a) => a.id === id);
@@ -92,14 +107,22 @@ export function PdfViewer({ tab, onOpenAnother, onPdfDocumentLoaded, viewerRef }
 
       if (ann.type === 'sticky-note' || ann.type === 'free-text') {
         const currentContent = 'content' in ann ? (ann as { content: string }).content : '';
-        // Capture anchor position from the event's implicit target
-        // We'll get the rect from the annotation's hit target via a ref or from DOM
         const hitEl = document.querySelector(`[data-annotation-hit="${id}"]`);
         setEditingAnnotation({
           id,
           initialContent: currentContent,
           label: ann.type === 'sticky-note' ? 'Edit note' : 'Edit text',
           anchorRect: hitEl?.getBoundingClientRect() ?? null,
+        });
+      } else if (ann.type === 'form-field') {
+        setEditingFormField({
+          id: ann.id,
+          fieldName: ann.fieldName,
+          fieldType: ann.fieldType,
+          required: ann.required,
+          defaultValue: ann.defaultValue,
+          options: ann.options,
+          maxLength: ann.maxLength,
         });
       }
     },
@@ -638,6 +661,10 @@ export function PdfViewer({ tab, onOpenAnother, onPdfDocumentLoaded, viewerRef }
     useUIStore.getState().openDialog('images-to-pdf');
   }, []);
 
+  const handleSignature = useCallback(() => {
+    useUIStore.getState().openDialog('signature');
+  }, []);
+
   // ── Stamp: placement handler ────────────────────────────────
 
   const handleStampClick = useCallback(
@@ -808,6 +835,102 @@ export function PdfViewer({ tab, onOpenAnother, onPdfDocumentLoaded, viewerRef }
       tabId: tab.id,
     });
   }, [hasRedactions, redactions.length, redactedPageNumbers, tab.filePath, tab.fileName, tab.id]);
+
+  // ── Form Field: draw handler ─────────────────────────────────
+
+  const handleFormFieldDrawn = useCallback(
+    (pageNumber: number, rect: { x: number; y: number; width: number; height: number }) => {
+      const ann = createAnnotation('form-field', pageNumber, { rect });
+      const store = useAnnotationStore.getState();
+      store.addAnnotation(tab.id, ann);
+      store.setActiveTool('select');
+    },
+    [tab.id]
+  );
+
+  // ── Form Field: settings dialog state ────────────────────────  // ── Form Field: settings handlers ────────────────────────────
+
+  const handleFormFieldSettingsSave = useCallback(
+    (settings: {
+      fieldName: string;
+      fieldType: 'text' | 'checkbox' | 'dropdown' | 'radiogroup';
+      required: boolean;
+      defaultValue?: string;
+      options?: string[];
+      maxLength?: number;
+    }) => {
+      if (!editingFormField) return;
+      useAnnotationStore
+        .getState()
+        .updateAnnotation(tab.id, editingFormField.id, settings as Partial<Annotation>);
+      setEditingFormField(null);
+    },
+    [editingFormField, tab.id, setEditingFormField]
+  );
+
+  const handleFormFieldSettingsClose = useCallback(() => {
+    setEditingFormField(null);
+  }, [setEditingFormField]);
+
+  // ── Form Field: apply flow ───────────────────────────────────
+
+  const formFields = useMemo(() => {
+    return annotationsForTab.filter((a) => a.type === 'form-field');
+  }, [annotationsForTab]);
+
+  const hasFormFields = formFields.length > 0;
+
+  const handleApplyFormFields = useCallback(async () => {
+    if (formFields.length === 0) return;
+
+    const saveResult = await window.crosspdf.saveFileDialog({
+      defaultPath: tab.fileName.replace('.pdf', '-with-forms.pdf'),
+      filters: [{ name: 'PDF', extensions: ['pdf'] }],
+    });
+
+    if (saveResult.canceled || !saveResult.filePath) return;
+
+    try {
+      const readResult = await window.crosspdf.readFile(tab.filePath);
+      if (!readResult.success || !readResult.data) {
+        useUIStore.getState().showToast(t('formField.readFailed'));
+        return;
+      }
+
+      const specs: FormFieldSpec[] = formFields.map((f) => ({
+        name: f.fieldName || `field_${f.id.slice(0, 8)}`,
+        type: f.fieldType as FormFieldSpec['type'],
+        page: f.pageNumber,
+        x: f.rect.x,
+        y: f.rect.y,
+        width: f.rect.width,
+        height: f.rect.height,
+        required: f.required,
+        defaultValue: f.defaultValue,
+        options: f.options,
+        maxLength: f.maxLength,
+      }));
+
+      const resultBytes = await addFormFields(readResult.data, specs);
+
+      const output = new Uint8Array(resultBytes.length);
+      output.set(resultBytes);
+
+      await window.crosspdf.writeFile(saveResult.filePath, output.buffer);
+
+      useUIStore.getState().showToast(t('formField.appliedSuccessfully'));
+
+      // Clear only form-field annotations
+      const formFieldIds = formFields.map((f) => f.id);
+      useAnnotationStore.getState().deleteAnnotations(tab.id, formFieldIds);
+    } catch (err) {
+      useUIStore.getState().showToast(
+        t('formField.applyFailed', {
+          error: err instanceof Error ? err.message : String(err),
+        })
+      );
+    }
+  }, [formFields, tab.filePath, tab.fileName, tab.id, t]);
 
   // ── Keyboard shortcuts ───────────────────────────────────────
 
@@ -1004,6 +1127,7 @@ export function PdfViewer({ tab, onOpenAnother, onPdfDocumentLoaded, viewerRef }
         onPassword={handlePassword}
         onPdfToImages={handlePdfToImages}
         onImagesToPdf={handleImagesToPdf}
+        onSignature={handleSignature}
       />
 
       {/* Content area */}
@@ -1029,6 +1153,16 @@ export function PdfViewer({ tab, onOpenAnother, onPdfDocumentLoaded, viewerRef }
                 title="Export PDF with Images"
               >
                 Export Images ({stamps.length})
+              </button>
+            )}
+            {hasFormFields && (
+              <button
+                type="button"
+                onClick={handleApplyFormFields}
+                className="rounded-xl bg-blue-500 px-4 py-2 text-xs font-semibold text-white shadow-lg shadow-blue-900/25 hover:bg-blue-600 active:bg-blue-700 transition-colors"
+                title={t('formField.apply')}
+              >
+                {t('formField.apply')} ({formFields.length})
               </button>
             )}
           </div>
@@ -1123,6 +1257,12 @@ export function PdfViewer({ tab, onOpenAnother, onPdfDocumentLoaded, viewerRef }
                         active={activeTool === 'redaction'}
                         onRedactionDrawn={handleRedactionDrawn}
                       />
+                      <FormFieldDrawLayer
+                        pageNumber={currentPage}
+                        zoom={effectiveZoom}
+                        active={activeTool === 'form-field'}
+                        onFormFieldDrawn={handleFormFieldDrawn}
+                      />
                       <AnnotationInteractionLayer
                         zoom={effectiveZoom}
                         annotations={annotationsForTab.filter((a) => a.pageNumber === currentPage)}
@@ -1178,6 +1318,7 @@ export function PdfViewer({ tab, onOpenAnother, onPdfDocumentLoaded, viewerRef }
               }
             }}
             onRedactionDrawn={handleRedactionDrawn}
+            onFormFieldDrawn={handleFormFieldDrawn}
             onAnnotationMoved={(id, rect) =>
               updateAnnotation(tab.id, id, { rect } as Partial<Annotation>)
             }
@@ -1204,6 +1345,20 @@ export function PdfViewer({ tab, onOpenAnother, onPdfDocumentLoaded, viewerRef }
           anchorRect={editingAnnotation.anchorRect}
           onSave={handleEditorSave}
           onCancel={handleEditorCancel}
+        />
+      )}
+
+      {editingFormField && (
+        <FormFieldSettingsDialog
+          open={true}
+          onClose={handleFormFieldSettingsClose}
+          onSave={handleFormFieldSettingsSave}
+          initialFieldName={editingFormField.fieldName}
+          initialFieldType={editingFormField.fieldType}
+          initialRequired={editingFormField.required}
+          initialDefaultValue={editingFormField.defaultValue}
+          initialOptions={editingFormField.options}
+          initialMaxLength={editingFormField.maxLength}
         />
       )}
     </div>

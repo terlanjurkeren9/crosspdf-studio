@@ -51,6 +51,8 @@ export function MenuDropdown({ label, items, align = 'left' }: MenuDropdownProps
       <button
         ref={triggerRef}
         type="button"
+        aria-haspopup="menu"
+        aria-expanded={open}
         onClick={() => setOpen((v) => !v)}
         onPointerEnter={() => {
           // Open sibling menu on hover if another menu is already open
@@ -72,6 +74,8 @@ export function MenuDropdown({ label, items, align = 'left' }: MenuDropdownProps
         <div
           ref={menuRef}
           data-menu-open
+          role="menu"
+          aria-label={label}
           className={`animate-slide-down absolute z-[250] mt-1 min-w-[200px] overflow-hidden rounded-xl border border-surface-200 bg-white py-1 shadow-lg shadow-surface-900/10 dark:border-surface-700 dark:bg-surface-800 ${
             align === 'right' ? 'right-0' : 'left-0'
           }`}
@@ -81,6 +85,7 @@ export function MenuDropdown({ label, items, align = 'left' }: MenuDropdownProps
               return (
                 <div
                   key={`sep-${idx}`}
+                  role="separator"
                   className="my-1 border-t border-surface-100 dark:border-surface-700"
                 />
               );
@@ -90,6 +95,7 @@ export function MenuDropdown({ label, items, align = 'left' }: MenuDropdownProps
               <button
                 key={`${item.label}-${idx}`}
                 type="button"
+                role="menuitem"
                 disabled={item.disabled}
                 onClick={() => {
                   item.action?.();

@@ -1,4 +1,5 @@
 import { useCallback, useMemo, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Dialog } from '../ui/Dialog';
 import { Button } from '../ui/Button';
 import { Spinner } from '../ui/Spinner';
@@ -25,6 +26,7 @@ export function OcrDialog({
   numPages,
   password,
 }: OcrDialogProps) {
+  const { t } = useTranslation();
   const [status, setStatus] = useState<OcrStatus>('idle');
   const [language, setLanguage] = useState('eng');
   const [dpi, setDpi] = useState(300);
@@ -127,7 +129,7 @@ export function OcrDialog({
             </Button>
           )}
           <Button variant="secondary" onClick={onClose} disabled={isRunning}>
-            {status === 'complete' ? 'Close' : 'Cancel'}
+            {status === 'complete' ? t('common.close') : t('common.cancel')}
           </Button>
           {status !== 'complete' && (
             <Button

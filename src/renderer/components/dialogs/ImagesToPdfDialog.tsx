@@ -1,4 +1,5 @@
 import { useCallback, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Dialog } from '../ui/Dialog';
 import { Button } from '../ui/Button';
 import { Spinner } from '../ui/Spinner';
@@ -17,6 +18,7 @@ interface ImagesToPdfDialogProps {
 type Status = 'idle' | 'creating' | 'done' | 'error';
 
 export function ImagesToPdfDialog({ open, onClose }: ImagesToPdfDialogProps) {
+  const { t } = useTranslation();
   const [status, setStatus] = useState<Status>('idle');
   const [images, setImages] = useState<ImageFile[]>([]);
   const [errorMessage, setErrorMessage] = useState('');
@@ -128,7 +130,7 @@ export function ImagesToPdfDialog({ open, onClose }: ImagesToPdfDialogProps) {
   const footer = (
     <>
       <Button variant="secondary" onClick={handleClose}>
-        {status === 'done' ? 'Close' : 'Cancel'}
+        {status === 'done' ? t('common.close') : t('common.cancel')}
       </Button>
       {status !== 'done' && (
         <Button
