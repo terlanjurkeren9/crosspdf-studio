@@ -17,6 +17,7 @@ import { PreferencesDialog } from './components/dialogs/PreferencesDialog';
 import { RedactionDialog } from './components/dialogs/RedactionDialog';
 import { PdfToImagesDialog } from './components/dialogs/PdfToImagesDialog';
 import { ImagesToPdfDialog } from './components/dialogs/ImagesToPdfDialog';
+import { SignatureDialog } from './components/dialogs/SignatureDialog';
 import { deletePages } from './services/pdf-ops.service';
 import { renderRedactedPages } from './services/redaction.service';
 import { applyRedactions } from './services/pdf-ops.service';
@@ -58,6 +59,17 @@ export default function App() {
       root.classList.remove('dark');
     }
   }, [theme]);
+
+  // Auto-update status push subscription
+  useEffect(() => {
+    const unsubscribe = window.crosspdf.onUpdateStatus((state) => {
+      const showToast = useUIStore.getState().showToast;
+      if (state.status === 'downloaded') {
+        showToast('Update downloaded. Restart to install.');
+      }
+    });
+    return unsubscribe;
+  }, []);
 
   const activeTab = tabs.find((t) => t.id === activeTabId) ?? null;
 
@@ -465,6 +477,14 @@ export default function App() {
       {activeDialog === 'images-to-pdf' && (
         <ImagesToPdfDialog
           key={`images-to-pdf-${activeDialog === 'images-to-pdf'}`}
+          open={true}
+          onClose={closeDialog}
+        />
+      )}
+
+      {activeDialog === 'signature' && (
+        <SignatureDialog
+          key={`signature-${activeDialog === 'signature'}`}
           open={true}
           onClose={closeDialog}
         />

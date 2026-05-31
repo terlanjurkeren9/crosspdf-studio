@@ -3,6 +3,7 @@ import path from 'node:path';
 import { log } from './utils/logger';
 import { getDatabase, saveDatabase, closeDatabase } from './database/connection';
 import { registerIpcHandlers } from './ipc';
+import * as updaterService from './services/updater.service';
 
 const isDev = !app.isPackaged && !process.env.CROSSPDF_E2E;
 
@@ -80,6 +81,7 @@ if (!isE2E) {
 app.whenReady().then(async () => {
   await getDatabase();
   registerIpcHandlers();
+  updaterService.initialize();
 
   mainWindow = createMainWindow();
 

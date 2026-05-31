@@ -12,7 +12,10 @@ import type {
   PdfCheckEncryptedResult,
   PdfPasswordResult,
   ExportSaveTextResult,
+  UpdateState,
+  UpdateStatusResult,
 } from '../shared/types/ipc.types';
+import { sanitizeUpdateState } from '../shared/types/ipc.types';
 
 export interface WindowApi {
   openFileDialog(options?: OpenDialogOptions): Promise<OpenDialogResult>;
@@ -45,6 +48,12 @@ export interface WindowApi {
   removePassword(filePath: string, password: string): Promise<PdfPasswordResult>;
 
   saveTextFile(defaultPath: string, text: string): Promise<ExportSaveTextResult>;
+
+  checkForUpdates(): Promise<UpdateStatusResult>;
+  downloadUpdate(): Promise<UpdateStatusResult>;
+  quitAndInstall(): void;
+  getUpdateState(): Promise<UpdateStatusResult>;
+  onUpdateStatus(callback: (state: UpdateState) => void): () => void;
 }
 
 contextBridge.exposeInMainWorld('crosspdf', {
@@ -103,6 +112,19 @@ contextBridge.exposeInMainWorld('crosspdf', {
 
   saveTextFile: (defaultPath: string, text: string) =>
     ipcRenderer.invoke(IPC_CHANNELS.EXPORT_SAVE_TEXT, { defaultPath, text }),
+
+  checkForUpdates: () => ipcRenderer.invoke(IPC_CHANNELS.UPDATE_CHECK),
+  downloadUpdate: () => ipcRenderer.invoke(IPC_CHANNELS.UPDATE_DOWNLOAD),
+  quitAndInstall: () => ipcRenderer.invoke(IPC_CHANNELS.UPDATE_QUIT_AND_INSTALL),
+  getUpdateState: () => ipcRenderer.invoke(IPC_CHANNELS.UPDATE_GET_STATE),
+  onUpdateStatus: (callback: (state: UpdateState) => void) => {
+    const handler = (_event: Electron.IpcRendererEvent, state: unknown) =>
+      callback(sanitizeUpdateState(state));
+    ipcRenderer.on(IPC_CHANNELS.UPDATE_STATUS, handler);
+    return () => {
+      ipcRenderer.removeListener(IPC_CHANNELS.UPDATE_STATUS, handler);
+    };
+  },
 } satisfies WindowApi);
 
 declare global {

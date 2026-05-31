@@ -142,3 +142,77 @@ export interface ExportSaveTextResult {
   filePath?: string;
   error?: string;
 }
+
+// ── Auto-Update Types ──────────────────────────────────────────
+
+export type UpdateStatus =
+  | 'idle'
+  | 'checking'
+  | 'available'
+  | 'not-available'
+  | 'downloading'
+  | 'downloaded'
+  | 'error';
+
+export interface UpdateProgressInfo {
+  percent: number;
+  transferred: number;
+  total: number;
+}
+
+export interface UpdateState {
+  status: UpdateStatus;
+  version?: string;
+  progress?: UpdateProgressInfo;
+  error?: string;
+}
+
+export interface UpdateStatusResult {
+  state: UpdateState;
+}
+
+const VALID_UPDATE_STATUSES: ReadonlySet<string> = new Set([
+  'idle',
+  'checking',
+  'available',
+  'not-available',
+  'downloading',
+  'downloaded',
+  'error',
+]);
+
+export function sanitizeUpdateState(raw: unknown): UpdateState {
+  if (typeof raw !== 'object' || raw === null) {
+    return { status: 'error', error: 'Invalid update state payload' };
+  }
+
+  const obj = raw as Record<string, unknown>;
+  const status = obj.status;
+
+  if (typeof status !== 'string' || !VALID_UPDATE_STATUSES.has(status)) {
+    return { status: 'error', error: 'Invalid update status value' };
+  }
+
+  const result: UpdateState = { status: status as UpdateStatus };
+
+  if (typeof obj.version === 'string') {
+    result.version = obj.version;
+  }
+
+  if (typeof obj.error === 'string') {
+    result.error = obj.error;
+  }
+
+  if (typeof obj.progress === 'object' && obj.progress !== null) {
+    const p = obj.progress as Record<string, unknown>;
+    if (typeof p.percent === 'number' && Number.isFinite(p.percent)) {
+      result.progress = {
+        percent: p.percent,
+        transferred: typeof p.transferred === 'number' ? p.transferred : 0,
+        total: typeof p.total === 'number' ? p.total : 0,
+      };
+    }
+  }
+
+  return result;
+}

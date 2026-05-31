@@ -26,4 +26,11 @@ export const IPC_CHANNELS = {
 
   // Export
   EXPORT_SAVE_TEXT: 'export:save-text',
+
+  // Update
+  UPDATE_CHECK: 'update:check',
+  UPDATE_DOWNLOAD: 'update:download',
+  UPDATE_QUIT_AND_INSTALL: 'update:quit-and-install',
+  UPDATE_GET_STATE: 'update:get-state',
+  UPDATE_STATUS: 'update:status',
 } as const;

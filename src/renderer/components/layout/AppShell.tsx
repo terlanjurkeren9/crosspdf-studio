@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react';
 import type { PDFDocumentProxy } from 'pdfjs-dist';
+import { useTranslation } from 'react-i18next';
 import {
   FileText,
   PanelLeft,
@@ -21,9 +22,12 @@ import {
   ArrowLeftRight,
   ScanText,
   FormInput,
+  TextCursorInput,
   Lock,
   Info,
   Keyboard,
+  PenTool,
+  DownloadCloud,
 } from 'lucide-react';
 import { useUIStore } from '../../stores/ui.store';
 import { useDocumentStore } from '../../stores/document.store';
@@ -60,6 +64,7 @@ export function AppShell({
   onOpenFile,
   onNavigateToPage,
 }: AppShellProps) {
+  const { t } = useTranslation();
   const sidebarOpen = useUIStore((s) => s.sidebarOpen);
 
   const activeTab = tabs.find((tab) => tab.id === activeTabId) ?? null;
@@ -73,28 +78,33 @@ export function AppShell({
   const uiState = useUIStore;
 
   const fileMenu: MenuItem[] = [
-    { label: 'Open PDF…', shortcut: 'Ctrl+O', icon: <FileUp size={14} />, action: onOpenFile },
     {
-      label: 'Images to PDF…',
+      label: t('menu.openPdf'),
+      shortcut: 'Ctrl+O',
+      icon: <FileUp size={14} />,
+      action: onOpenFile,
+    },
+    {
+      label: t('menu.imagesToPdf'),
       icon: <ImagePlus size={14} />,
       action: () => uiState.getState().openDialog('images-to-pdf'),
     },
     {
-      label: 'PDF to Images…',
+      label: t('menu.pdfToImages'),
       icon: <FileImage size={14} />,
       disabled: !hasActiveDocument,
       action: () => uiState.getState().openDialog('pdf-to-images'),
     },
     { separator: true },
     {
-      label: 'Close Document',
+      label: t('menu.closeDocument'),
       shortcut: 'Ctrl+W',
       icon: <X size={14} />,
       disabled: !activeTabId,
       action: () => activeTabId && closeTab(activeTabId),
     },
     {
-      label: 'Close All',
+      label: t('menu.closeAll'),
       disabled: tabs.length === 0,
       action: () => tabs.forEach((tab) => closeTab(tab.id)),
     },
@@ -102,14 +112,14 @@ export function AppShell({
 
   const editMenu: MenuItem[] = [
     {
-      label: 'Undo',
+      label: t('menu.undo'),
       shortcut: 'Ctrl+Z',
       icon: <Undo2 size={14} />,
       disabled: !activeTabId || !canUndo,
       action: () => activeTabId && useAnnotationStore.getState().undo(activeTabId),
     },
     {
-      label: 'Redo',
+      label: t('menu.redo'),
       shortcut: 'Ctrl+Shift+Z',
       icon: <Redo2 size={14} />,
       disabled: !activeTabId || !canRedo,
@@ -117,7 +127,7 @@ export function AppShell({
     },
     { separator: true },
     {
-      label: 'Delete Selection',
+      label: t('menu.deleteSelection'),
       shortcut: 'Del',
       icon: <Trash2 size={14} />,
       disabled: !activeTabId || !hasSelection,
@@ -126,7 +136,7 @@ export function AppShell({
     },
     { separator: true },
     {
-      label: 'Select Tool',
+      label: t('menu.selectTool'),
       icon: <MousePointer2 size={14} />,
       disabled: !hasActiveDocument,
       action: () => setActiveTool('select'),
@@ -135,26 +145,26 @@ export function AppShell({
 
   const viewMenu: MenuItem[] = [
     {
-      label: sidebarOpen ? 'Hide Sidebar' : 'Show Sidebar',
+      label: sidebarOpen ? t('menu.hideSidebar') : t('menu.showSidebar'),
       icon: <PanelRight size={14} />,
       action: () => uiState.getState().toggleSidebar(),
     },
     { separator: true },
     {
-      label: 'Thumbnails',
+      label: t('menu.thumbnails'),
       icon: <PanelLeft size={14} />,
       disabled: !hasActiveDocument,
       action: () => uiState.getState().setSidebarPanel('thumbnails'),
     },
     {
-      label: 'Search',
+      label: t('menu.search'),
       shortcut: 'Ctrl+F',
       icon: <Search size={14} />,
       disabled: !hasActiveDocument,
       action: () => uiState.getState().setSidebarPanel('search'),
     },
     {
-      label: 'Comments',
+      label: t('menu.comments'),
       icon: <MessageSquareText size={14} />,
       disabled: !hasActiveDocument,
       action: () => uiState.getState().setSidebarPanel('comments'),
@@ -163,60 +173,92 @@ export function AppShell({
 
   const toolsMenu: MenuItem[] = [
     {
-      label: 'Merge PDFs…',
+      label: t('menu.mergePdfs'),
       icon: <Combine size={14} />,
       action: () => uiState.getState().openPageOpsDialog('merge'),
     },
     {
-      label: 'Split PDF…',
+      label: t('menu.splitPdf'),
       icon: <Scissors size={14} />,
       disabled: !hasActiveDocument,
       action: () => uiState.getState().openPageOpsDialog('split'),
     },
     {
-      label: 'Extract Pages…',
+      label: t('menu.extractPages'),
       icon: <Copy size={14} />,
       disabled: !hasActiveDocument,
       action: () => uiState.getState().openPageOpsDialog('extract'),
     },
     {
-      label: 'Reorder Pages…',
+      label: t('menu.reorderPages'),
       icon: <ArrowLeftRight size={14} />,
       disabled: !hasActiveDocument,
       action: () => uiState.getState().openPageOpsDialog('reorder'),
     },
     { separator: true },
     {
-      label: 'OCR…',
+      label: t('menu.ocr'),
       icon: <ScanText size={14} />,
       disabled: !hasActiveDocument,
       action: () => uiState.getState().openDialog('ocr'),
     },
     {
-      label: 'Forms…',
+      label: t('menu.forms'),
       icon: <FormInput size={14} />,
       disabled: !hasActiveDocument,
       action: () => uiState.getState().openDialog('forms'),
     },
     {
-      label: 'Password Protection…',
+      label: t('menu.createFormField'),
+      icon: <TextCursorInput size={14} />,
+      disabled: !hasActiveDocument,
+      action: () => useAnnotationStore.getState().setActiveTool('form-field'),
+    },
+    {
+      label: t('menu.passwordProtection'),
       icon: <Lock size={14} />,
       disabled: !hasActiveDocument,
       action: () => uiState.getState().openDialog('password-protection'),
+    },
+    {
+      label: t('menu.digitalSignature'),
+      icon: <PenTool size={14} />,
+      disabled: !hasActiveDocument,
+      action: () => uiState.getState().openDialog('signature'),
     },
   ];
 
   const helpMenu: MenuItem[] = [
     {
-      label: 'About CrossPDF Studio',
+      label: t('menu.about'),
       icon: <Info size={14} />,
       action: () => uiState.getState().showToast('CrossPDF Studio v0.1.0'),
     },
     {
-      label: 'Keyboard Shortcuts',
+      label: t('menu.keyboardShortcuts'),
       icon: <Keyboard size={14} />,
       action: () =>
         uiState.getState().showToast('Ctrl+O Open · Ctrl+W Close · Ctrl+F Search · Ctrl+Z Undo'),
+    },
+    { separator: true },
+    {
+      label: t('update.checkForUpdates'),
+      icon: <DownloadCloud size={14} />,
+      action: async () => {
+        try {
+          const result = await window.crosspdf.checkForUpdates();
+          const s = result.state;
+          if (s.status === 'not-available') {
+            uiState.getState().showToast(t('update.upToDate'));
+          } else if (s.status === 'available') {
+            uiState.getState().showToast(t('update.available', { version: s.version }));
+          } else if (s.status === 'error') {
+            uiState.getState().showToast(t('update.error'));
+          }
+        } catch {
+          uiState.getState().showToast(t('update.error'));
+        }
+      },
     },
   ];
 
@@ -236,11 +278,11 @@ export function AppShell({
 
         {/* Menu bar */}
         <nav className="flex items-center gap-0.5">
-          <MenuDropdown label="File" items={fileMenu} />
-          <MenuDropdown label="Edit" items={editMenu} />
-          <MenuDropdown label="View" items={viewMenu} />
-          <MenuDropdown label="Tools" items={toolsMenu} />
-          <MenuDropdown label="Help" items={helpMenu} align="right" />
+          <MenuDropdown label={t('menu.file')} items={fileMenu} />
+          <MenuDropdown label={t('menu.edit')} items={editMenu} />
+          <MenuDropdown label={t('menu.view')} items={viewMenu} />
+          <MenuDropdown label={t('menu.tools')} items={toolsMenu} />
+          <MenuDropdown label={t('menu.help')} items={helpMenu} align="right" />
         </nav>
 
         <div className="flex-1" />
@@ -254,8 +296,8 @@ export function AppShell({
               ? 'bg-brand-50 text-brand-600 hover:bg-brand-100 dark:bg-brand-950/60 dark:text-brand-400'
               : 'text-surface-400 hover:bg-surface-100 hover:text-surface-600 dark:hover:bg-surface-800 dark:hover:text-surface-300'
           }`}
-          title="Toggle sidebar"
-          aria-label="Toggle sidebar"
+          title={t('menu.toggleSidebar')}
+          aria-label={t('menu.toggleSidebar')}
         >
           <PanelLeft className="h-4 w-4" />
         </button>
@@ -263,8 +305,8 @@ export function AppShell({
           type="button"
           onClick={() => useUIStore.getState().openDialog('preferences')}
           className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-surface-400 hover:bg-surface-100 hover:text-surface-600 dark:hover:bg-surface-800 dark:hover:text-surface-300"
-          title="Preferences"
-          aria-label="Preferences"
+          title={t('preferences.title')}
+          aria-label={t('preferences.title')}
         >
           <Settings className="h-4 w-4" />
         </button>
@@ -292,7 +334,7 @@ export function AppShell({
       {/* ── Status bar (home only) ─────────────────────────── */}
       {!hasOpenDocument && (
         <footer className="flex h-7 shrink-0 items-center border-t border-surface-200 bg-white px-3 dark:border-surface-800 dark:bg-surface-900">
-          <span className="text-xs text-surface-400">Ready</span>
+          <span className="text-xs text-surface-400">{t('common.ready')}</span>
         </footer>
       )}
 
