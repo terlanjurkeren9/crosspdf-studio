@@ -15,14 +15,6 @@ asar: true
 extraResources:
   - from: node_modules/sql.js/dist/sql-wasm.wasm
     to: sql-wasm.wasm
-  - from: resources/darwin-arm64/qpdf
-    to: darwin-arm64/qpdf
-  - from: resources/darwin-arm64/libqpdf.30.dylib
-    to: darwin-arm64/libqpdf.30.dylib
-  - from: resources/darwin-arm64/libjpeg.8.dylib
-    to: darwin-arm64/libjpeg.8.dylib
-  - from: resources/darwin-arm64/libcrypto.3.dylib
-    to: darwin-arm64/libcrypto.3.dylib
 
 mac:
   icon: resources/icon.icns
@@ -41,15 +33,37 @@ mac:
   entitlementsInherit: resources/entitlements.mac.plist
   identity: ${CSC_IDENTITY}
   gatekeeperAssess: false
+  extraResources:
+    - from: resources/darwin-arm64/qpdf
+      to: darwin-arm64/qpdf
+    - from: resources/darwin-arm64/libqpdf.30.dylib
+      to: darwin-arm64/libqpdf.30.dylib
+    - from: resources/darwin-arm64/libjpeg.8.dylib
+      to: darwin-arm64/libjpeg.8.dylib
+    - from: resources/darwin-arm64/libcrypto.3.dylib
+      to: darwin-arm64/libcrypto.3.dylib
 
 afterSign: scripts/notarize.cjs
 
 win:
   icon: resources/icon.ico
+  artifactName: CrossPDF-Studio-Setup-${version}.${ext}
   target:
     - target: nsis
       arch:
         - x64
+  # QPDF Windows binaries not yet bundled. When resources/win-x64/ contains:
+  #   qpdf.exe, libqpdf-30.dll, libcrypto-3-x64.dll, libjpeg-62.dll
+  # uncomment the extraResources block below to ship them in the installer.
+  # extraResources:
+  #   - from: resources/win-x64/qpdf.exe
+  #     to: win-x64/qpdf.exe
+  #   - from: resources/win-x64/libqpdf-30.dll
+  #     to: win-x64/libqpdf-30.dll
+  #   - from: resources/win-x64/libcrypto-3-x64.dll
+  #     to: win-x64/libcrypto-3-x64.dll
+  #   - from: resources/win-x64/libjpeg-62.dll
+  #     to: win-x64/libjpeg-62.dll
 
 nsis:
   oneClick: false
