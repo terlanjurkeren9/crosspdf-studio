@@ -1,13 +1,14 @@
 import { useEffect, useRef } from 'react';
 import type { PDFDocumentProxy } from 'pdfjs-dist';
-import { ChevronRight, MessageSquareText, Search, LayoutGrid } from 'lucide-react';
+import { Bookmark, ChevronRight, MessageSquareText, Search, LayoutGrid } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { useUIStore } from '../../stores/ui.store';
 import { ThumbnailPanel } from './ThumbnailPanel';
 import { SearchPanel } from './SearchPanel';
 import { CommentPanel } from './CommentPanel';
+import { BookmarkPanel } from './BookmarkPanel';
 
-type PanelType = 'thumbnails' | 'search' | 'comments';
+type PanelType = 'thumbnails' | 'search' | 'comments' | 'bookmarks';
 
 interface SidebarProps {
   pdfDocument: PDFDocumentProxy | null;
@@ -22,6 +23,7 @@ const PANELS: Record<PanelType, { labelKey: string; icon: typeof LayoutGrid }> =
   thumbnails: { labelKey: 'sidebar.pages', icon: LayoutGrid },
   search: { labelKey: 'sidebar.search', icon: Search },
   comments: { labelKey: 'sidebar.comments', icon: MessageSquareText },
+  bookmarks: { labelKey: 'sidebar.bookmarks', icon: Bookmark },
 };
 
 function RailButton({
@@ -139,6 +141,13 @@ export function Sidebar({
 
             {panel === 'comments' && (
               <CommentPanel tabId={activeTabId ?? null} onNavigateToPage={onNavigateToPage} />
+            )}
+
+            {panel === 'bookmarks' && pdfDocument && (
+              <BookmarkPanel pdfDocument={pdfDocument} onNavigateToPage={onNavigateToPage} />
+            )}
+            {panel === 'bookmarks' && !pdfDocument && (
+              <div className="p-4 text-xs text-surface-400">{t('sidebar.openForThumbnails')}</div>
             )}
           </div>
         </div>

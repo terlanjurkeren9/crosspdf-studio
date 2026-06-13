@@ -13,7 +13,7 @@ export type AnnotationType =
   | 'stamp'
   | 'form-field';
 
-export type AnnotationTool = 'select' | AnnotationType;
+export type AnnotationTool = 'select' | 'hand' | AnnotationType;
 
 export interface PdfRect {
   x: number;
@@ -171,6 +171,8 @@ export function toolCursor(tool: AnnotationTool): string {
   switch (tool) {
     case 'select':
       return 'default';
+    case 'hand':
+      return 'grab';
     case 'highlight':
     case 'underline':
     case 'strikeout':

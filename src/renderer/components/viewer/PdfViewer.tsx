@@ -22,6 +22,7 @@ import { loadAnnotationDraft, saveAnnotationDraft } from '../../services/annotat
 import { AnnotationEditor } from './AnnotationEditor';
 import type {
   Annotation,
+  AnnotationTool,
   RedactionAnnotation,
   StampAnnotation,
 } from '../../types/annotation.types';
@@ -34,6 +35,17 @@ import type { FormFieldSpec } from '../../services/pdf-ops.service';
 import { FormFieldSettingsDialog } from '../dialogs/FormFieldSettingsDialog';
 import { screenPointToPdf } from '../../lib/pdf-coordinates';
 import { normalizeImageToSafeDataUrl } from '../../lib/image-normalize';
+import {
+  calculateHandToolPanPosition,
+  getHandToolCursor,
+  getHandToolUserSelect,
+} from '../../lib/hand-tool';
+import {
+  getFileShortcutAction,
+  isEditableShortcutTarget,
+  saveAsDefaultPath,
+} from '../../lib/file-shortcuts';
+import { embedAnnotationsInPdf, extractAnnotationsFromPdf } from '../../lib/pdf-annotation-embed';
 
 const EMPTY_ANNOTATIONS: Annotation[] = [];
 
@@ -43,8 +55,31 @@ type DocState =
   | { status: 'ready' }
   | { status: 'error'; message: string };
 
+function emitE2EFileAction(action: 'save' | 'save-as' | 'print', filePath?: string): void {
+  if (!window.crosspdf.isE2E) return;
+  window.dispatchEvent(
+    new CustomEvent('crosspdf:e2e-file-action', {
+      detail: { action, filePath },
+    })
+  );
+}
+
+function getE2ESaveFilePath(): string | undefined {
+  if (!window.crosspdf.isE2E) return undefined;
+  return (window as unknown as { __crosspdfE2ESaveFilePath?: string }).__crosspdfE2ESaveFilePath;
+}
+
 export interface PdfViewerHandle {
   goToPage: (page: number) => void;
+  previousPage: () => void;
+  nextPage: () => void;
+  zoomIn: () => void;
+  zoomOut: () => void;
+  setFitMode: (mode: FitMode) => void;
+  setTool: (tool: AnnotationTool) => void;
+  save: () => Promise<void>;
+  saveAs: () => Promise<void>;
+  print: () => void;
 }
 
 interface PdfViewerProps {
@@ -196,6 +231,7 @@ export function PdfViewer({ tab, onOpenAnother, onPdfDocumentLoaded, viewerRef }
   const isUserScrollRef = useRef(false);
   const isPageInputFocusedRef = useRef(false);
   const containerRef = useRef<HTMLDivElement>(null);
+  const [isPanning, setIsPanning] = useState(false);
 
   const containerSize = useResizeObserver(containerRef);
 
@@ -235,6 +271,93 @@ export function PdfViewer({ tab, onOpenAnother, onPdfDocumentLoaded, viewerRef }
     return computeFitZoom(fitMode, pageDims, containerSize.width, containerSize.height) ?? zoom;
   }, [fitMode, zoom, pageDims, containerSize]);
 
+  useEffect(() => {
+    const root = containerRef.current;
+    const workspace = root?.querySelector<HTMLElement>('.pdf-workspace');
+    if (!workspace || activeTool !== 'hand' || docState.status !== 'ready') {
+      setIsPanning(false);
+      return;
+    }
+
+    let dragging = false;
+    let panStart = {
+      clientX: 0,
+      clientY: 0,
+      scrollLeft: 0,
+      scrollTop: 0,
+    };
+
+    const stopPan = () => {
+      if (!dragging) return;
+      dragging = false;
+      setIsPanning(false);
+    };
+
+    const onPointerDown = (e: PointerEvent) => {
+      if (e.button !== 0) return;
+      const target = e.target as HTMLElement | null;
+      if (target?.closest('button,input,textarea,select,[role="button"]')) return;
+
+      e.preventDefault();
+      dragging = true;
+      panStart = {
+        clientX: e.clientX,
+        clientY: e.clientY,
+        scrollLeft: workspace.scrollLeft,
+        scrollTop: workspace.scrollTop,
+      };
+      setIsPanning(true);
+
+      try {
+        workspace.setPointerCapture(e.pointerId);
+      } catch {
+        /* ignore */
+      }
+    };
+
+    const onPointerMove = (e: PointerEvent) => {
+      if (!dragging) return;
+      e.preventDefault();
+      const next = calculateHandToolPanPosition(panStart, e.clientX, e.clientY);
+      workspace.scrollLeft = next.scrollLeft;
+      workspace.scrollTop = next.scrollTop;
+    };
+
+    workspace.addEventListener('pointerdown', onPointerDown);
+    workspace.addEventListener('pointermove', onPointerMove);
+    workspace.addEventListener('pointerup', stopPan);
+    workspace.addEventListener('pointercancel', stopPan);
+    workspace.addEventListener('lostpointercapture', stopPan);
+
+    return () => {
+      workspace.removeEventListener('pointerdown', onPointerDown);
+      workspace.removeEventListener('pointermove', onPointerMove);
+      workspace.removeEventListener('pointerup', stopPan);
+      workspace.removeEventListener('pointercancel', stopPan);
+      workspace.removeEventListener('lostpointercapture', stopPan);
+      stopPan();
+    };
+  }, [activeTool, docState.status, viewMode]);
+
+  useEffect(() => {
+    const root = containerRef.current;
+    const workspace = root?.querySelector<HTMLElement>('.pdf-workspace');
+    if (!workspace) return;
+
+    const previousCursor = workspace.style.cursor;
+    const previousUserSelect = workspace.style.userSelect;
+
+    workspace.style.cursor =
+      docState.status === 'ready' ? getHandToolCursor(activeTool, isPanning) : '';
+    workspace.style.userSelect =
+      docState.status === 'ready' ? getHandToolUserSelect(activeTool) : '';
+
+    return () => {
+      workspace.style.cursor = previousCursor;
+      workspace.style.userSelect = previousUserSelect;
+    };
+  }, [activeTool, docState.status, isPanning, viewMode]);
+
   // Sync effective zoom to annotation interaction hook
   useEffect(() => {
     setZoom(effectiveZoom);
@@ -250,6 +373,18 @@ export function PdfViewer({ tab, onOpenAnother, onPdfDocumentLoaded, viewerRef }
     annotationsRef.current = annotationsForTab;
   });
 
+  useEffect(() => {
+    if (!window.crosspdf.isE2E) return;
+    const handler = (event: Event) => {
+      const annotations = (event as CustomEvent<Annotation[]>).detail;
+      if (Array.isArray(annotations)) {
+        setAnnotationsForTab(tab.id, annotations);
+      }
+    };
+    window.addEventListener('crosspdf:e2e-set-annotations', handler);
+    return () => window.removeEventListener('crosspdf:e2e-set-annotations', handler);
+  }, [setAnnotationsForTab, tab.id]);
+
   // Activate persistence + load annotation draft when document becomes ready
   useEffect(() => {
     if (docState.status !== 'ready') return;
@@ -258,6 +393,21 @@ export function PdfViewer({ tab, onOpenAnother, onPdfDocumentLoaded, viewerRef }
     persistRef.current = true;
 
     (async () => {
+      try {
+        const readResult = await window.crosspdf.readFile(tab.filePath);
+        if (cancelled) return;
+        if (readResult.success && readResult.data) {
+          const embedded = await extractAnnotationsFromPdf(readResult.data);
+          if (cancelled) return;
+          if (embedded.length > 0 && annotationsRef.current.length === 0) {
+            setAnnotationsForTab(tab.id, embedded);
+            return;
+          }
+        }
+      } catch (err) {
+        console.error('Failed to load embedded PDF annotations:', err);
+      }
+
       const drafts = await loadAnnotationDraft(tab.filePath);
       if (cancelled) return;
       // Only load if drafts exist AND no annotations have been created yet
@@ -500,15 +650,6 @@ export function PdfViewer({ tab, onOpenAnother, onPdfDocumentLoaded, viewerRef }
     [numPages, viewMode, currentPage, addRenderedPage]
   );
 
-  // Expose goToPage to parent via ref
-  useImperativeHandle(
-    viewerRef,
-    () => ({
-      goToPage,
-    }),
-    [goToPage]
-  );
-
   const handlePrevPage = useCallback(() => goToPage(currentPage - 1), [goToPage, currentPage]);
   const handleNextPage = useCallback(() => goToPage(currentPage + 1), [goToPage, currentPage]);
   const handleFirstPage = useCallback(() => goToPage(1), [goToPage]);
@@ -577,6 +718,120 @@ export function PdfViewer({ tab, onOpenAnother, onPdfDocumentLoaded, viewerRef }
   const handleClose = useCallback(() => {
     closeTab(tab.id);
   }, [closeTab, tab.id]);
+
+  // ── File actions ─────────────────────────────────────────────
+
+  const readCurrentPdfBytes = useCallback(async (): Promise<ArrayBuffer | null> => {
+    if (tab.filePath) {
+      const readResult = await window.crosspdf.readFile(tab.filePath);
+      if (!readResult.success || !readResult.data) {
+        useUIStore.getState().showToast(readResult.error ?? t('viewer.saveFailed'));
+        return null;
+      }
+      return readResult.data;
+    }
+
+    return pdfData;
+  }, [pdfData, tab.filePath, t]);
+
+  const buildAnnotatedPdfBytes = useCallback(async (): Promise<ArrayBuffer | null> => {
+    const data = await readCurrentPdfBytes();
+    if (!data) return null;
+
+    try {
+      return await embedAnnotationsInPdf(data, annotationsRef.current);
+    } catch (err) {
+      console.error('Failed to embed annotations in PDF:', err);
+      useUIStore.getState().showToast(t('viewer.saveFailed'));
+      return null;
+    }
+  }, [readCurrentPdfBytes, t]);
+
+  const handleSaveAs = useCallback(async () => {
+    const data = await buildAnnotatedPdfBytes();
+    if (!data) return;
+
+    const e2eSavePath = getE2ESaveFilePath();
+    const saveResult = e2eSavePath
+      ? { canceled: false, filePath: e2eSavePath }
+      : await window.crosspdf.saveFileDialog({
+          defaultPath: saveAsDefaultPath(tab.fileName),
+          filters: [{ name: 'PDF Documents', extensions: ['pdf'] }],
+        });
+    if (saveResult.canceled || !saveResult.filePath) return;
+
+    const writeResult = await window.crosspdf.writeFile(saveResult.filePath, data);
+    if (!writeResult.success) {
+      useUIStore.getState().showToast(writeResult.error ?? t('viewer.saveFailed'));
+      return;
+    }
+
+    useUIStore.getState().showToast(t('viewer.saved'));
+    emitE2EFileAction('save-as', saveResult.filePath);
+    const fileName = saveResult.filePath.split(/[/\\]/).pop() ?? saveResult.filePath;
+    window.dispatchEvent(
+      new CustomEvent('crosspdf:open-file', { detail: { filePath: saveResult.filePath } })
+    );
+    window.crosspdf.upsertRecentDocument(saveResult.filePath, fileName).catch(() => {
+      // Ignore — recent documents update is best-effort.
+    });
+  }, [buildAnnotatedPdfBytes, tab.fileName, t]);
+
+  const handleSave = useCallback(async () => {
+    if (!tab.filePath) {
+      await handleSaveAs();
+      return;
+    }
+
+    const data = await buildAnnotatedPdfBytes();
+    if (!data) return;
+
+    const writeResult = await window.crosspdf.writeFile(tab.filePath, data);
+    if (!writeResult.success) {
+      useUIStore.getState().showToast(writeResult.error ?? t('viewer.saveFailed'));
+      return;
+    }
+
+    useUIStore.getState().showToast(t('viewer.saved'));
+    emitE2EFileAction('save', tab.filePath);
+    window.crosspdf.upsertRecentDocument(tab.filePath, tab.fileName).catch(() => {
+      // Ignore — recent documents update is best-effort.
+    });
+  }, [buildAnnotatedPdfBytes, handleSaveAs, tab.fileName, tab.filePath, t]);
+
+  const handlePrint = useCallback(() => {
+    emitE2EFileAction('print', tab.filePath);
+    if (window.crosspdf.isE2E) return;
+    window.print();
+  }, [tab.filePath]);
+
+  useImperativeHandle(
+    viewerRef,
+    () => ({
+      goToPage,
+      previousPage: handlePrevPage,
+      nextPage: handleNextPage,
+      zoomIn: handleZoomIn,
+      zoomOut: handleZoomOut,
+      setFitMode,
+      setTool: setActiveTool,
+      save: handleSave,
+      saveAs: handleSaveAs,
+      print: handlePrint,
+    }),
+    [
+      goToPage,
+      handlePrevPage,
+      handleNextPage,
+      handleZoomIn,
+      handleZoomOut,
+      setFitMode,
+      setActiveTool,
+      handleSave,
+      handleSaveAs,
+      handlePrint,
+    ]
+  );
 
   // ── Page ops handlers ────────────────────────────────────────
 
@@ -848,6 +1103,32 @@ export function PdfViewer({ tab, onOpenAnother, onPdfDocumentLoaded, viewerRef }
     [tab.id]
   );
 
+  // ── Freehand: draw handler ───────────────────────────────────
+
+  const handleFreehandDrawn = useCallback(
+    (pageNumber: number, points: number[], color: string, strokeWidth: number) => {
+      const ann = createAnnotation('freehand', pageNumber, { points, color, strokeWidth });
+      useAnnotationStore.getState().addAnnotation(tab.id, ann);
+    },
+    [tab.id]
+  );
+
+  // ── Shape: draw handler ─────────────────────────────────────
+
+  const handleShapeDrawn = useCallback(
+    (
+      pageNumber: number,
+      type: 'rectangle' | 'ellipse' | 'line' | 'arrow',
+      points: number[],
+      color: string,
+      strokeWidth: number
+    ) => {
+      const ann = createAnnotation(type, pageNumber, { points, color, strokeWidth });
+      useAnnotationStore.getState().addAnnotation(tab.id, ann);
+    },
+    [tab.id]
+  );
+
   // ── Form Field: settings dialog state ────────────────────────  // ── Form Field: settings handlers ────────────────────────────
 
   const handleFormFieldSettingsSave = useCallback(
@@ -938,10 +1219,25 @@ export function PdfViewer({ tab, onOpenAnother, onPdfDocumentLoaded, viewerRef }
     const handler = (e: KeyboardEvent) => {
       if (docState.status !== 'ready') return;
 
-      const target = e.target as HTMLElement;
-      if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA') return;
+      if (isEditableShortcutTarget(e.target)) return;
 
       const meta = e.ctrlKey || e.metaKey;
+      const fileAction = getFileShortcutAction(e);
+      if (fileAction === 'save') {
+        e.preventDefault();
+        void handleSave();
+        return;
+      }
+      if (fileAction === 'save-as') {
+        e.preventDefault();
+        void handleSaveAs();
+        return;
+      }
+      if (fileAction === 'print') {
+        e.preventDefault();
+        handlePrint();
+        return;
+      }
 
       // When the user has an active text selection, skip navigation shortcuts
       // that would destroy the selection (allows Ctrl+C to work naturally).
@@ -1038,6 +1334,9 @@ export function PdfViewer({ tab, onOpenAnother, onPdfDocumentLoaded, viewerRef }
     handleZoomIn,
     handleZoomOut,
     setFitMode,
+    handleSave,
+    handleSaveAs,
+    handlePrint,
     activeTool,
     currentPage,
     viewMode,
@@ -1100,6 +1399,9 @@ export function PdfViewer({ tab, onOpenAnother, onPdfDocumentLoaded, viewerRef }
         disabled={isDisabled}
         onClose={handleClose}
         onOpenAnother={onOpenAnother}
+        onSave={handleSave}
+        onSaveAs={handleSaveAs}
+        onPrint={handlePrint}
         onPageInputChange={handlePageInputChange}
         onPageInputKeyDown={handlePageInputKeyDown}
         onPageInputFocus={handlePageInputFocus}
@@ -1319,6 +1621,8 @@ export function PdfViewer({ tab, onOpenAnother, onPdfDocumentLoaded, viewerRef }
             }}
             onRedactionDrawn={handleRedactionDrawn}
             onFormFieldDrawn={handleFormFieldDrawn}
+            onFreehandDrawn={handleFreehandDrawn}
+            onShapeDrawn={handleShapeDrawn}
             onAnnotationMoved={(id, rect) =>
               updateAnnotation(tab.id, id, { rect } as Partial<Annotation>)
             }

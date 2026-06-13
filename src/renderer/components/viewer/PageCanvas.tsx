@@ -3,8 +3,11 @@ import type { PDFDocumentProxy } from 'pdfjs-dist';
 import type { PageRenderState } from '../../hooks/usePdfPage';
 import { usePdfPage } from '../../hooks/usePdfPage';
 import { PageTextLayer } from './PageTextLayer';
+import { SearchHighlightLayer } from './SearchHighlightLayer';
 import { AnnotationLayer } from './AnnotationLayer';
 import { RedactionDrawLayer } from './RedactionDrawLayer';
+import { FreehandDrawLayer } from './FreehandDrawLayer';
+import { ShapeDrawLayer } from './ShapeDrawLayer';
 import { AnnotationInteractionLayer } from './AnnotationInteractionLayer';
 import { FormFieldDrawLayer } from './FormFieldDrawLayer';
 import { Spinner } from '../ui/Spinner';
@@ -35,6 +38,21 @@ interface PageCanvasProps {
     pageNumber: number,
     rect: { x: number; y: number; width: number; height: number }
   ) => void;
+  // Freehand draw
+  onFreehandDrawn?: (
+    pageNumber: number,
+    points: number[],
+    color: string,
+    strokeWidth: number
+  ) => void;
+  // Shape draw
+  onShapeDrawn?: (
+    pageNumber: number,
+    type: 'rectangle' | 'ellipse' | 'line' | 'arrow',
+    points: number[],
+    color: string,
+    strokeWidth: number
+  ) => void;
   // Annotation interaction (move/resize for stamp, sticky-note, free-text)
   onAnnotationMoved?: (
     id: string,
@@ -62,6 +80,8 @@ const PageCanvasInner = memo(function PageCanvas({
   onPageClick,
   onRedactionDrawn,
   onFormFieldDrawn,
+  onFreehandDrawn,
+  onShapeDrawn,
   onAnnotationMoved,
   onAnnotationResized,
 }: PageCanvasProps) {
@@ -143,6 +163,12 @@ const PageCanvasInner = memo(function PageCanvas({
       {state.status === 'done' && (
         <>
           <PageTextLayer pdfDocument={pdfDocument} pageNumber={pageNumber} zoom={zoom} />
+          <SearchHighlightLayer
+            pdfDocument={pdfDocument}
+            pageNumber={pageNumber}
+            zoom={zoom}
+            rotation={rotation as 0 | 90 | 180 | 270}
+          />
           <AnnotationLayer
             annotations={annotations ?? []}
             pageNumber={pageNumber}
@@ -168,6 +194,28 @@ const PageCanvasInner = memo(function PageCanvas({
               zoom={zoom}
               active={(activeTool ?? 'select') === 'form-field'}
               onFormFieldDrawn={onFormFieldDrawn}
+            />
+          )}
+          {onFreehandDrawn && (
+            <FreehandDrawLayer
+              pageNumber={pageNumber}
+              zoom={zoom}
+              active={(activeTool ?? 'select') === 'freehand'}
+              onFreehandDrawn={onFreehandDrawn}
+            />
+          )}
+          {onShapeDrawn && (
+            <ShapeDrawLayer
+              pageNumber={pageNumber}
+              zoom={zoom}
+              active={
+                (activeTool ?? 'select') === 'rectangle' ||
+                (activeTool ?? 'select') === 'ellipse' ||
+                (activeTool ?? 'select') === 'line' ||
+                (activeTool ?? 'select') === 'arrow'
+              }
+              activeTool={(activeTool ?? 'select') as 'rectangle' | 'ellipse' | 'line' | 'arrow'}
+              onShapeDrawn={onShapeDrawn}
             />
           )}
           {annotations && onAnnotationMoved && onAnnotationResized && (

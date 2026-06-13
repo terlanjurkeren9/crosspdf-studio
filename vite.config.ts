@@ -19,7 +19,7 @@ export default defineConfig({
           build: {
             outDir: 'dist/main',
             rollupOptions: {
-              external: ['sql.js', 'electron', 'electron-log', 'electron-updater'],
+              external: ['sql.js', 'electron', 'electron-log', 'electron-updater', 'fs-extra'],
               output: {
                 format: 'cjs',
                 entryFileNames: '[name].cjs',

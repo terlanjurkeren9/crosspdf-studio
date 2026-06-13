@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { PDFDocumentProxy } from 'pdfjs-dist';
-import { searchPages, createSearchOptions, type SearchResult } from '../../lib/search';
+import { searchPages, createSearchOptions } from '../../lib/search';
 import { SearchResultItem } from './SearchResultItem';
+import { useSearchStore } from '../../stores/search.store';
 
 interface SearchPanelProps {
   pdfDocument: PDFDocumentProxy | null;
@@ -23,27 +24,33 @@ export function SearchPanel({
   onNavigateToPage,
   autoFocus = false,
 }: SearchPanelProps) {
-  const [query, setQuery] = useState('');
+  const query = useSearchStore((s) => s.query);
+  const results = useSearchStore((s) => s.results);
+  const activeResultIdx = useSearchStore((s) => s.activeResultIdx);
+  const isSearching = useSearchStore((s) => s.isSearching);
+  const setQuery = useSearchStore((s) => s.setQuery);
+  const setResults = useSearchStore((s) => s.setResults);
+  const setActiveResultIdx = useSearchStore((s) => s.setActiveResultIdx);
+  const setIsSearching = useSearchStore((s) => s.setIsSearching);
+  const clearSearch = useSearchStore((s) => s.clear);
+
   const [caseSensitive, setCaseSensitive] = useState(false);
   const [wholeWord, setWholeWord] = useState(false);
   const [status, setStatus] = useState<SearchStatus>({ status: 'idle' });
-  const [results, setResults] = useState<SearchResult[]>([]);
-  const [activeResultIdx, setActiveResultIdx] = useState(0);
 
   const inputRef = useRef<HTMLInputElement>(null);
   const textCacheRef = useRef<Map<number, string>>(new Map());
   const docIdRef = useRef<PDFDocumentProxy | null>(null);
 
-  // Clear cache when document changes
+  // Clear cache and search state when document changes
   useEffect(() => {
     if (docIdRef.current !== pdfDocument) {
       textCacheRef.current.clear();
       docIdRef.current = pdfDocument;
-      setResults([]);
-      setActiveResultIdx(0);
+      clearSearch();
       setStatus({ status: 'idle' });
     }
-  }, [pdfDocument]);
+  }, [pdfDocument, clearSearch]);
 
   // Auto-focus input
   useEffect(() => {
@@ -72,6 +79,7 @@ export function SearchPanel({
     // Extract uncached pages
     if (pagesToExtract.length > 0) {
       setStatus({ status: 'extracting', current: 0, total: pagesToExtract.length });
+      setIsSearching(true);
 
       for (let idx = 0; idx < pagesToExtract.length; idx++) {
         const pageNum = pagesToExtract[idx];
@@ -97,7 +105,17 @@ export function SearchPanel({
     setResults(searchResults);
     setActiveResultIdx(0);
     setStatus({ status: 'done' });
-  }, [pdfDocument, query, numPages, caseSensitive, wholeWord]);
+    setIsSearching(false);
+  }, [
+    pdfDocument,
+    query,
+    numPages,
+    caseSensitive,
+    wholeWord,
+    setResults,
+    setActiveResultIdx,
+    setIsSearching,
+  ]);
 
   const goToResult = useCallback(
     (idx: number) => {
@@ -107,7 +125,7 @@ export function SearchPanel({
         onNavigateToPage(result.pageNumber);
       }
     },
-    [results, onNavigateToPage]
+    [results, onNavigateToPage, setActiveResultIdx]
   );
 
   const goToNextResult = useCallback(() => {
@@ -133,7 +151,6 @@ export function SearchPanel({
   );
 
   const isExtracting = status.status === 'extracting';
-  const isSearching = status.status === 'searching';
   const busy = isExtracting || isSearching;
 
   return (

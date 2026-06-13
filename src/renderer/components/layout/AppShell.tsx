@@ -1,3 +1,4 @@
+import { useCallback } from 'react';
 import type { ReactNode } from 'react';
 import type { PDFDocumentProxy } from 'pdfjs-dist';
 import { useTranslation } from 'react-i18next';
@@ -28,6 +29,9 @@ import {
   Keyboard,
   PenTool,
   DownloadCloud,
+  GitCompare,
+  Layers,
+  ShieldCheck,
 } from 'lucide-react';
 import { useUIStore } from '../../stores/ui.store';
 import { useDocumentStore } from '../../stores/document.store';
@@ -49,6 +53,7 @@ interface AppShellProps {
   searchAutoFocus: boolean;
   hasOpenDocument: boolean;
   onOpenFile: () => void;
+  onOpenFilePath?: (filePath: string) => void;
   onNavigateToPage: (pageNumber: number) => void;
 }
 
@@ -62,10 +67,32 @@ export function AppShell({
   searchAutoFocus,
   hasOpenDocument,
   onOpenFile,
+  onOpenFilePath,
   onNavigateToPage,
 }: AppShellProps) {
   const { t } = useTranslation();
   const sidebarOpen = useUIStore((s) => s.sidebarOpen);
+
+  const handleDragOver = useCallback((e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+  }, []);
+
+  const handleDrop = useCallback(
+    (e: React.DragEvent<HTMLDivElement>) => {
+      e.preventDefault();
+      e.stopPropagation();
+      const file = e.dataTransfer.files?.[0];
+      const electronFile = file as File & { path?: string };
+      if (electronFile && typeof electronFile.path === 'string') {
+        const filePath = electronFile.path;
+        if (filePath.toLowerCase().endsWith('.pdf')) {
+          onOpenFilePath?.(filePath);
+        }
+      }
+    },
+    [onOpenFilePath]
+  );
 
   const activeTab = tabs.find((tab) => tab.id === activeTabId) ?? null;
   const hasActiveDocument = Boolean(activeTab);
@@ -226,6 +253,22 @@ export function AppShell({
       disabled: !hasActiveDocument,
       action: () => uiState.getState().openDialog('signature'),
     },
+    { separator: true },
+    {
+      label: t('menu.compare', 'Compare Documents'),
+      icon: <GitCompare size={14} />,
+      action: () => uiState.getState().openDialog('compare'),
+    },
+    {
+      label: t('menu.batch', 'Batch Processing'),
+      icon: <Layers size={14} />,
+      action: () => uiState.getState().openDialog('batch'),
+    },
+    {
+      label: t('menu.validate', 'Validate PDF'),
+      icon: <ShieldCheck size={14} />,
+      action: () => uiState.getState().openDialog('validate'),
+    },
   ];
 
   const helpMenu: MenuItem[] = [
@@ -263,7 +306,11 @@ export function AppShell({
   ];
 
   return (
-    <div className="flex h-full flex-col bg-surface-50 text-surface-800 dark:bg-surface-950 dark:text-surface-200">
+    <div
+      className="flex h-full flex-col bg-surface-50 text-surface-800 dark:bg-surface-950 dark:text-surface-200"
+      onDragOver={handleDragOver}
+      onDrop={handleDrop}
+    >
       {/* ── Top App Bar ─────────────────────────────────────── */}
       <header className="flex h-11 shrink-0 select-none items-center gap-3 border-b border-surface-200 bg-white px-3 dark:border-surface-800 dark:bg-surface-900">
         {/* Logo */}

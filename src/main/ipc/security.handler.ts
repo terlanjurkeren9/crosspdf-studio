@@ -12,6 +12,7 @@ import {
   encryptWithPassword,
   removePassword,
 } from '../services/pdf-security.service';
+import { validatePdf } from '../services/qpdf.service';
 import { log } from '../utils/logger';
 
 export function registerSecurityHandlers(): void {
@@ -93,6 +94,25 @@ export function registerSecurityHandlers(): void {
       }
     }
   );
+
+  ipcMain.handle(IPC_CHANNELS.PDF_VALIDATE, async (_event, payload: unknown) => {
+    const parsed = PdfCheckEncryptedPayloadSchema.safeParse(payload);
+    if (!parsed.success) {
+      return { valid: false, errors: ['Invalid payload'], warnings: [], isPdfA: false };
+    }
+
+    try {
+      return await validatePdf(parsed.data.filePath);
+    } catch (err) {
+      log.error('pdf:validate failed', { error: (err as Error).message });
+      return {
+        valid: false,
+        errors: [(err as Error).message],
+        warnings: [],
+        isPdfA: false,
+      };
+    }
+  });
 }
 
 /**

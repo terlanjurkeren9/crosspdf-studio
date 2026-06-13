@@ -1,6 +1,10 @@
 import { useCallback, useRef } from 'react';
 import type { Annotation as AnnotationType } from '../../types/annotation.types';
 import { pdfRectToPixel, quadPointsToPixel } from '../../lib/pdf-coordinates';
+import {
+  getAnnotationHitTargetCursor,
+  getAnnotationHitTargetPointerEvents,
+} from '../../lib/hand-tool';
 import type { PageDims } from '../../lib/zoom';
 
 interface AnnotationLayerProps {
@@ -109,8 +113,8 @@ export function AnnotationLayer({
               top: y,
               width: w,
               height: h,
-              pointerEvents: 'auto',
-              cursor: 'pointer',
+              pointerEvents: getAnnotationHitTargetPointerEvents(activeTool),
+              cursor: getAnnotationHitTargetCursor(activeTool),
               zIndex: 3,
             }}
             onPointerDown={(e) => {

@@ -18,6 +18,7 @@ import type {
 import { sanitizeUpdateState } from '../shared/types/ipc.types';
 
 export interface WindowApi {
+  isE2E: boolean;
   openFileDialog(options?: OpenDialogOptions): Promise<OpenDialogResult>;
   saveFileDialog(options?: SaveDialogOptions): Promise<SaveDialogResult>;
   readFile(filePath: string): Promise<ReadFileResult>;
@@ -38,6 +39,16 @@ export interface WindowApi {
   getPreference(key: string): Promise<unknown>;
   setPreference(key: string, value: unknown): Promise<void>;
 
+  saveSession(tabs: unknown[], activeTabId: string | null): Promise<void>;
+  loadSession(): Promise<{ tabs: unknown[]; activeTabId: string | null } | null>;
+  validatePdf(filePath: string): Promise<{
+    valid: boolean;
+    errors: string[];
+    warnings: string[];
+    isPdfA: boolean;
+    pdfaLevel?: string;
+  }>;
+
   checkEncrypted(filePath: string): Promise<PdfCheckEncryptedResult>;
   applyPassword(filePath: string, password: string): Promise<PdfPasswordResult>;
   encryptPdf(
@@ -57,6 +68,8 @@ export interface WindowApi {
 }
 
 contextBridge.exposeInMainWorld('crosspdf', {
+  isE2E: process.env.CROSSPDF_E2E === '1',
+
   openFileDialog: (options?: OpenDialogOptions) =>
     ipcRenderer.invoke(IPC_CHANNELS.FILE_OPEN_DIALOG, options ?? {}),
 
@@ -93,6 +106,13 @@ contextBridge.exposeInMainWorld('crosspdf', {
 
   setPreference: (key: string, value: unknown) =>
     ipcRenderer.invoke(IPC_CHANNELS.DB_SET_PREFERENCE, { key, value }),
+
+  saveSession: (tabs: unknown[], activeTabId: string | null) =>
+    ipcRenderer.invoke(IPC_CHANNELS.SESSION_SAVE, { tabs, activeTabId }),
+
+  loadSession: () => ipcRenderer.invoke(IPC_CHANNELS.SESSION_LOAD),
+
+  validatePdf: (filePath: string) => ipcRenderer.invoke(IPC_CHANNELS.PDF_VALIDATE, { filePath }),
 
   checkEncrypted: (filePath: string) =>
     ipcRenderer.invoke(IPC_CHANNELS.PDF_CHECK_ENCRYPTED, { filePath }),

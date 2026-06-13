@@ -7,6 +7,8 @@ import {
 } from '../../shared/types/ipc.types';
 import { getPreference, setPreference } from '../database/repositories/preferences.repo';
 import { getAllRecent, upsertRecent } from '../database/repositories/recent-documents.repo';
+import { getDbSync } from '../database/connection';
+import { SessionsRepository } from '../database/repositories/sessions.repo';
 import { log } from '../utils/logger';
 
 export function registerDatabaseHandlers(): void {
@@ -59,5 +61,29 @@ export function registerDatabaseHandlers(): void {
       parsed.data.fileSize ?? 0,
       parsed.data.pageCount ?? 0
     );
+  });
+
+  ipcMain.handle(IPC_CHANNELS.SESSION_SAVE, (_event, payload: unknown) => {
+    try {
+      if (!payload || typeof payload !== 'object') return;
+      const { tabs, activeTabId } = payload as Record<string, unknown>;
+      if (!Array.isArray(tabs)) return;
+      const db = getDbSync();
+      const repo = new SessionsRepository(db);
+      repo.saveSession(tabs, typeof activeTabId === 'string' ? activeTabId : null);
+    } catch (err) {
+      log.error('session:save failed', { error: (err as Error).message });
+    }
+  });
+
+  ipcMain.handle(IPC_CHANNELS.SESSION_LOAD, () => {
+    try {
+      const db = getDbSync();
+      const repo = new SessionsRepository(db);
+      return repo.loadSession();
+    } catch (err) {
+      log.error('session:load failed', { error: (err as Error).message });
+      return null;
+    }
   });
 }

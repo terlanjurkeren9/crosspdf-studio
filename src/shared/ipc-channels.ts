@@ -18,6 +18,13 @@ export const IPC_CHANNELS = {
   DB_GET_PREFERENCE: 'db:get-preference',
   DB_SET_PREFERENCE: 'db:set-preference',
 
+  // Session
+  SESSION_SAVE: 'session:save',
+  SESSION_LOAD: 'session:load',
+
+  // PDF Validation
+  PDF_VALIDATE: 'pdf:validate',
+
   // PDF Security
   PDF_CHECK_ENCRYPTED: 'pdf:check-encrypted',
   PDF_APPLY_PASSWORD: 'pdf:apply-password',

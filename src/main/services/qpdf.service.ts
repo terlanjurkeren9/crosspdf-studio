@@ -113,6 +113,14 @@ export function buildDecryptArgs(
 }
 
 /**
+ * Build the QPDF check/validate arguments array.
+ * Exported for testing.
+ */
+export function buildCheckArgs(inputPath: string): string[] {
+  return ['--check', inputPath];
+}
+
+/**
  * Strip password values from stderr in case QPDF echoes them.
  * Redacts `--password=<value>` patterns and raw password strings
  * (including positional args after --encrypt).
@@ -193,4 +201,79 @@ export async function decryptPdf(inputPath: string, password: string): Promise<B
       /* ignore cleanup errors */
     }
   }
+}
+
+export interface PdfValidationResult {
+  valid: boolean;
+  errors: string[];
+  warnings: string[];
+  isPdfA: boolean;
+  pdfaLevel?: string;
+}
+
+/**
+ * Validate a PDF file for basic structural integrity and PDF/A compliance.
+ * Uses QPDF --check for structural validation and inspects metadata for PDF/A indicators.
+ */
+export async function validatePdf(filePath: string): Promise<PdfValidationResult> {
+  const status = await checkQpdfAvailable();
+  if (!status.available || !status.path) {
+    return {
+      valid: false,
+      errors: [status.error ?? 'QPDF is not available on this system.'],
+      warnings: [],
+      isPdfA: false,
+    };
+  }
+
+  const errors: string[] = [];
+  const warnings: string[] = [];
+  let isPdfA = false;
+  let pdfaLevel: string | undefined;
+
+  // Run QPDF --check
+  try {
+    const args = buildCheckArgs(filePath);
+    const { stdout, stderr } = await execFileAsync(status.path, args, { timeout: 30000 });
+
+    // QPDF --check outputs to stderr on success, stdout on error
+    const output = (stderr || '') + (stdout || '');
+
+    if (output.includes('ERROR')) {
+      errors.push(output.trim());
+    } else if (output.includes('WARNING')) {
+      warnings.push(output.trim());
+    }
+  } catch (err) {
+    const stderr = (err as { stderr?: string }).stderr || '';
+    if (stderr) {
+      errors.push(stderr.trim());
+    } else {
+      errors.push((err as Error).message);
+    }
+  }
+
+  // Check for PDF/A metadata indicators (basic heuristic)
+  try {
+    const fsPromises = await import('node:fs/promises');
+    const buffer = await fsPromises.readFile(filePath);
+    const text = buffer.toString('latin1');
+
+    if (text.includes('/OutputIntents') && text.includes('PDFA')) {
+      isPdfA = true;
+      if (text.includes('PDFA-1')) pdfaLevel = '1';
+      else if (text.includes('PDFA-2')) pdfaLevel = '2';
+      else if (text.includes('PDFA-3')) pdfaLevel = '3';
+    }
+  } catch {
+    // Ignore metadata check errors
+  }
+
+  return {
+    valid: errors.length === 0,
+    errors,
+    warnings,
+    isPdfA,
+    pdfaLevel,
+  };
 }

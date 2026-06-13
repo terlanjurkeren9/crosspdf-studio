@@ -9,18 +9,26 @@ import {
   Combine,
   FileImage,
   FileOutput,
+  FilePlus2,
   FolderOpen,
+  Hand,
   Highlighter,
   ImagePlus,
   Images,
   LockKeyhole,
   MousePointer2,
   PenTool,
+  Pencil,
+  Square,
+  Circle,
+  Minus,
+  ArrowRight,
   RotateCcw,
   RotateCw,
   Rows3,
   ScanText,
   Scissors,
+  Save,
   ShieldOff,
   Split,
   StickyNote,
@@ -30,6 +38,7 @@ import {
   Type,
   Underline,
   X,
+  Printer,
   ZoomIn,
   ZoomOut,
 } from 'lucide-react';
@@ -52,6 +61,9 @@ interface ViewerToolbarProps {
 
   onClose: () => void;
   onOpenAnother: () => void;
+  onSave?: () => void;
+  onSaveAs?: () => void;
+  onPrint?: () => void;
   onPageInputChange: (value: string) => void;
   onPageInputKeyDown: (e: KeyboardEvent<HTMLInputElement>) => void;
   onPageInputFocus: () => void;
@@ -91,11 +103,17 @@ const ANNOTATION_TOOLS: {
   icon: ComponentType<{ className?: string }>;
 }[] = [
   { tool: 'select', labelKey: 'viewer.select', icon: MousePointer2 },
+  { tool: 'hand', labelKey: 'viewer.hand', icon: Hand },
   { tool: 'highlight', labelKey: 'viewer.highlight', icon: Highlighter },
   { tool: 'underline', labelKey: 'viewer.underline', icon: Underline },
   { tool: 'strikeout', labelKey: 'viewer.strikeout', icon: Strikethrough },
   { tool: 'sticky-note', labelKey: 'viewer.stickyNote', icon: StickyNote },
   { tool: 'free-text', labelKey: 'viewer.addText', icon: Type },
+  { tool: 'freehand', labelKey: 'viewer.freehand', icon: Pencil },
+  { tool: 'rectangle', labelKey: 'viewer.rectangle', icon: Square },
+  { tool: 'ellipse', labelKey: 'viewer.ellipse', icon: Circle },
+  { tool: 'line', labelKey: 'viewer.line', icon: Minus },
+  { tool: 'arrow', labelKey: 'viewer.arrow', icon: ArrowRight },
   { tool: 'stamp', labelKey: 'viewer.addImage', icon: ImagePlus },
   { tool: 'redaction', labelKey: 'viewer.redaction', icon: ShieldOff },
   { tool: 'form-field', labelKey: 'viewer.createFormField', icon: TextCursorInput },
@@ -112,6 +130,9 @@ export function ViewerToolbar({
   disabled,
   onClose,
   onOpenAnother,
+  onSave,
+  onSaveAs,
+  onPrint,
   onPageInputChange,
   onPageInputKeyDown,
   onPageInputFocus,
@@ -173,6 +194,21 @@ export function ViewerToolbar({
         <IconButton label={t('viewer.openAnotherDocument')} onClick={onOpenAnother}>
           <FolderOpen className="h-4 w-4" />
         </IconButton>
+        {onSave && (
+          <IconButton label={t('viewer.save')} onClick={onSave} disabled={disabled}>
+            <Save className="h-4 w-4" />
+          </IconButton>
+        )}
+        {onSaveAs && (
+          <IconButton label={t('viewer.saveAs')} onClick={onSaveAs} disabled={disabled}>
+            <FilePlus2 className="h-4 w-4" />
+          </IconButton>
+        )}
+        {onPrint && (
+          <IconButton label={t('viewer.print')} onClick={onPrint} disabled={disabled}>
+            <Printer className="h-4 w-4" />
+          </IconButton>
+        )}
         <span
           className="max-w-[160px] truncate px-1 text-xs font-medium text-surface-600 dark:text-surface-300"
           title={fileName}

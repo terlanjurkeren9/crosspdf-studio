@@ -1,9 +1,11 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { PDFDocumentProxy } from 'pdfjs-dist';
+import { useTranslation } from 'react-i18next';
 import { AppShell } from './components/layout/AppShell';
 import { HomeScreen } from './components/home/HomeScreen';
 import { PdfViewer } from './components/viewer/PdfViewer';
 import type { PdfViewerHandle } from './components/viewer/PdfViewer';
+import { CommandPalette } from './components/command/CommandPalette';
 import { MergeDialog } from './components/dialogs/MergeDialog';
 import { SplitDialog } from './components/dialogs/SplitDialog';
 import { ExtractPagesDialog } from './components/dialogs/ExtractPagesDialog';
@@ -18,20 +20,30 @@ import { RedactionDialog } from './components/dialogs/RedactionDialog';
 import { PdfToImagesDialog } from './components/dialogs/PdfToImagesDialog';
 import { ImagesToPdfDialog } from './components/dialogs/ImagesToPdfDialog';
 import { SignatureDialog } from './components/dialogs/SignatureDialog';
+import { CompareDialog } from './components/dialogs/CompareDialog';
+import { BatchDialog } from './components/dialogs/BatchDialog';
+import { ValidateDialog } from './components/dialogs/ValidateDialog';
 import { deletePages } from './services/pdf-ops.service';
 import { renderRedactedPages } from './services/redaction.service';
 import { applyRedactions } from './services/pdf-ops.service';
 import type { RedactionAnnotation } from './types/annotation.types';
 import { isRedaction } from './types/annotation.types';
 import { useUIStore } from './stores/ui.store';
-import { useDocumentStore } from './stores/document.store';
+import { useDocumentStore, type TabState } from './stores/document.store';
 import { useAnnotationStore } from './stores/annotation.store';
+import {
+  COMMAND_DEFINITIONS,
+  isCommandPaletteShortcut,
+  type CommandItem,
+} from './lib/command-palette';
 
 export default function App() {
+  const { t } = useTranslation();
   const theme = useUIStore((s) => s.theme);
   const tabs = useDocumentStore((s) => s.tabs);
   const activeTabId = useDocumentStore((s) => s.activeTabId);
   const openTab = useDocumentStore((s) => s.openTab);
+  const restoreSession = useDocumentStore((s) => s.restoreSession);
   const closeTab = useDocumentStore((s) => s.closeTab);
   const setSidebarPanel = useUIStore((s) => s.setSidebarPanel);
   const activePageOpsDialog = useUIStore((s) => s.activePageOpsDialog);
@@ -44,8 +56,22 @@ export default function App() {
   const [activePdfDocument, setActivePdfDocument] = useState<PDFDocumentProxy | null>(null);
   const [activeNumPages, setActiveNumPages] = useState(0);
   const [searchAutoFocus, setSearchAutoFocus] = useState(false);
+  const [commandPaletteOpen, setCommandPaletteOpen] = useState(false);
 
   const viewerRef = useRef<PdfViewerHandle | null>(null);
+
+  // Session restore — skip during E2E tests to avoid stale persisted tabs
+  useEffect(() => {
+    if (window.crosspdf.isE2E) return;
+    window.crosspdf
+      .loadSession()
+      .then((session) => {
+        if (session && session.tabs && Array.isArray(session.tabs) && session.tabs.length > 0) {
+          restoreSession(session.tabs as TabState[], session.activeTabId);
+        }
+      })
+      .catch(console.error);
+  }, [restoreSession]);
 
   // Theme
   useEffect(() => {
@@ -152,6 +178,67 @@ export default function App() {
     [openTab]
   );
 
+  const commands = useMemo<CommandItem[]>(() => {
+    const runCommand = (id: string) => {
+      switch (id) {
+        case 'file.open':
+          return handleOpenFileDialog();
+        case 'file.save':
+          return viewerRef.current?.save();
+        case 'file.saveAs':
+          return viewerRef.current?.saveAs();
+        case 'file.print':
+          return viewerRef.current?.print();
+        case 'view.zoomIn':
+          return viewerRef.current?.zoomIn();
+        case 'view.zoomOut':
+          return viewerRef.current?.zoomOut();
+        case 'view.fitPage':
+          return viewerRef.current?.setFitMode('fit-page');
+        case 'view.fitWidth':
+          return viewerRef.current?.setFitMode('fit-width');
+        case 'view.actualSize':
+          return viewerRef.current?.setFitMode('actual');
+        case 'view.handTool':
+          return viewerRef.current?.setTool('hand');
+        case 'view.selectTool':
+          return viewerRef.current?.setTool('select');
+        case 'navigation.nextPage':
+          return viewerRef.current?.nextPage();
+        case 'navigation.previousPage':
+          return viewerRef.current?.previousPage();
+        case 'navigation.goToPage': {
+          const value = window.prompt(t('commandPalette.goToPagePrompt'));
+          const page = value ? Number.parseInt(value, 10) : Number.NaN;
+          if (!Number.isNaN(page)) viewerRef.current?.goToPage(page);
+          return;
+        }
+        case 'annotate.highlight':
+          return viewerRef.current?.setTool('highlight');
+        case 'annotate.underline':
+          return viewerRef.current?.setTool('underline');
+        case 'annotate.strikeout':
+          return viewerRef.current?.setTool('strikeout');
+        case 'annotate.note':
+          return viewerRef.current?.setTool('sticky-note');
+        case 'annotate.addText':
+          return viewerRef.current?.setTool('free-text');
+        case 'app.preferences':
+          return useUIStore.getState().openDialog('preferences');
+        case 'app.closeTab':
+          if (activeTabId) closeTab(activeTabId);
+          return;
+      }
+    };
+
+    return COMMAND_DEFINITIONS.map((command) => ({
+      ...command,
+      label: t(command.labelKey),
+      disabled: command.requiresDocument ? !activeTab : false,
+      run: () => runCommand(command.id),
+    }));
+  }, [activeTab, activeTabId, closeTab, handleOpenFileDialog, t]);
+
   // Handle PDF document loaded from PdfViewer
   const handlePdfDocumentLoaded = useCallback((doc: PDFDocumentProxy | null) => {
     setActivePdfDocument(doc);
@@ -167,12 +254,15 @@ export default function App() {
     viewerRef.current?.goToPage(pageNumber);
   }, []);
 
-  // Keyboard shortcuts: Ctrl+O, Ctrl+W, Ctrl+F, Ctrl+T
+  // Keyboard shortcuts: Ctrl+O, Ctrl+W, Ctrl+F, Ctrl+K, Ctrl+T
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
       const meta = e.ctrlKey || e.metaKey;
 
-      if (meta && (e.key === 'o' || e.key === 't')) {
+      if (isCommandPaletteShortcut(e)) {
+        e.preventDefault();
+        setCommandPaletteOpen((open) => !open);
+      } else if (meta && (e.key === 'o' || e.key === 't')) {
         e.preventDefault();
         handleOpenFileDialog();
       } else if (meta && e.key === 'w') {
@@ -341,6 +431,7 @@ export default function App() {
       searchAutoFocus={searchAutoFocus}
       hasOpenDocument={hasOpenDocument}
       onOpenFile={handleOpenFileDialog}
+      onOpenFilePath={handleOpenFilePath}
       onNavigateToPage={handleNavigateToPage}
     >
       {activeTab ? (
@@ -353,6 +444,14 @@ export default function App() {
         />
       ) : (
         <HomeScreen onOpenFile={handleOpenFileDialog} onOpenFilePath={handleOpenFilePath} />
+      )}
+
+      {commandPaletteOpen && (
+        <CommandPalette
+          open={true}
+          commands={commands}
+          onClose={() => setCommandPaletteOpen(false)}
+        />
       )}
 
       {/* Page ops dialogs */}
@@ -485,6 +584,26 @@ export default function App() {
       {activeDialog === 'signature' && (
         <SignatureDialog
           key={`signature-${activeDialog === 'signature'}`}
+          open={true}
+          onClose={closeDialog}
+        />
+      )}
+
+      {activeDialog === 'compare' && (
+        <CompareDialog
+          key={`compare-${activeDialog === 'compare'}`}
+          open={true}
+          onClose={closeDialog}
+        />
+      )}
+
+      {activeDialog === 'batch' && (
+        <BatchDialog key={`batch-${activeDialog === 'batch'}`} open={true} onClose={closeDialog} />
+      )}
+
+      {activeDialog === 'validate' && (
+        <ValidateDialog
+          key={`validate-${activeDialog === 'validate'}`}
           open={true}
           onClose={closeDialog}
         />
