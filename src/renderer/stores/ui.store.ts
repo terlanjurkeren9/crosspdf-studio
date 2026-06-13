@@ -24,6 +24,16 @@ interface UIState {
   pageOpsDialogProps: Record<string, unknown>;
   dialogProps: Record<string, unknown>;
   toastMessage: string | null;
+  signaturePlacement: { page: number; rect: [number, number, number, number] } | null;
+  signaturePlacementMode: boolean;
+  signatureFormData: {
+    certificatePath: string;
+    passphrase: string;
+    signerName: string;
+    reason: string;
+    location: string;
+    contact: string;
+  };
 
   setTheme: (theme: Theme) => void;
   toggleSidebar: () => void;
@@ -35,6 +45,11 @@ interface UIState {
   closeDialog: () => void;
   showToast: (message: string) => void;
   clearToast: () => void;
+  setSignaturePlacement: (
+    placement: { page: number; rect: [number, number, number, number] } | null
+  ) => void;
+  setSignaturePlacementMode: (mode: boolean) => void;
+  setSignatureFormData: (data: UIState['signatureFormData']) => void;
 }
 
 let toastTimer: ReturnType<typeof setTimeout> | null = null;
@@ -49,6 +64,16 @@ export const useUIStore = create<UIState>((set) => ({
   pageOpsDialogProps: {},
   dialogProps: {},
   toastMessage: null,
+  signaturePlacement: null,
+  signaturePlacementMode: false,
+  signatureFormData: {
+    certificatePath: '',
+    passphrase: '',
+    signerName: '',
+    reason: '',
+    location: '',
+    contact: '',
+  },
 
   setTheme: (theme) => set({ theme }),
 
@@ -98,4 +123,9 @@ export const useUIStore = create<UIState>((set) => ({
     toastTimer = null;
     set({ toastMessage: null });
   },
+
+  setSignaturePlacement: (placement) =>
+    set({ signaturePlacement: placement, signaturePlacementMode: false }),
+  setSignaturePlacementMode: (mode: boolean) => set({ signaturePlacementMode: mode }),
+  setSignatureFormData: (data) => set({ signatureFormData: data }),
 }));

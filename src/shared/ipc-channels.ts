@@ -40,4 +40,7 @@ export const IPC_CHANNELS = {
   UPDATE_QUIT_AND_INSTALL: 'update:quit-and-install',
   UPDATE_GET_STATE: 'update:get-state',
   UPDATE_STATUS: 'update:status',
+
+  // Digital signature
+  PDF_SIGN_DIGITAL: 'pdf:sign-digital',
 } as const;

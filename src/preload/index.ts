@@ -15,6 +15,7 @@ import type {
   UpdateState,
   UpdateStatusResult,
 } from '../shared/types/ipc.types';
+import type { SignDigitalPayload, SignDigitalResult } from '../shared/types/signing.types';
 import { sanitizeUpdateState } from '../shared/types/ipc.types';
 
 export interface WindowApi {
@@ -65,6 +66,12 @@ export interface WindowApi {
   quitAndInstall(): void;
   getUpdateState(): Promise<UpdateStatusResult>;
   onUpdateStatus(callback: (state: UpdateState) => void): () => void;
+
+  /**
+   * Digitally sign a PDF using a P12/PFX certificate.
+   * Returns signed PDF bytes (base64) or writes to outputPath.
+   */
+  signPdf(payload: SignDigitalPayload): Promise<SignDigitalResult>;
 }
 
 contextBridge.exposeInMainWorld('crosspdf', {
@@ -145,6 +152,9 @@ contextBridge.exposeInMainWorld('crosspdf', {
       ipcRenderer.removeListener(IPC_CHANNELS.UPDATE_STATUS, handler);
     };
   },
+
+  signPdf: (payload: SignDigitalPayload) =>
+    ipcRenderer.invoke(IPC_CHANNELS.PDF_SIGN_DIGITAL, payload),
 } satisfies WindowApi);
 
 declare global {

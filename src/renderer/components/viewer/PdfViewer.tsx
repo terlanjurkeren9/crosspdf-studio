@@ -29,6 +29,7 @@ import type {
 import { isRedaction, isStamp } from '../../types/annotation.types';
 import { RedactionDrawLayer } from './RedactionDrawLayer';
 import { FormFieldDrawLayer } from './FormFieldDrawLayer';
+import { SignaturePlacementLayer } from './SignaturePlacementLayer';
 import { AnnotationInteractionLayer } from './AnnotationInteractionLayer';
 import { applyStamps, addFormFields } from '../../services/pdf-ops.service';
 import type { FormFieldSpec } from '../../services/pdf-ops.service';
@@ -103,6 +104,7 @@ export function PdfViewer({ tab, onOpenAnother, onPdfDocumentLoaded, viewerRef }
   const setActiveTool = useAnnotationStore((s) => s.setActiveTool);
   const undo = useAnnotationStore((s) => s.undo);
   const redo = useAnnotationStore((s) => s.redo);
+  const signaturePlacementMode = useUIStore((s) => s.signaturePlacementMode);
 
   const textLayerContainerRef = useRef<HTMLDivElement>(null);
 
@@ -1103,6 +1105,19 @@ export function PdfViewer({ tab, onOpenAnother, onPdfDocumentLoaded, viewerRef }
     [tab.id]
   );
 
+  // ── Signature placement: draw handler ───────────────────────
+
+  const handleSignaturePlaced = useCallback(
+    (pageNumber: number, rect: { x: number; y: number; width: number; height: number }) => {
+      useUIStore.getState().setSignaturePlacement({
+        page: pageNumber,
+        rect: [rect.x, rect.y, rect.width, rect.height],
+      });
+      useUIStore.getState().openDialog('signature');
+    },
+    []
+  );
+
   // ── Freehand: draw handler ───────────────────────────────────
 
   const handleFreehandDrawn = useCallback(
@@ -1564,6 +1579,12 @@ export function PdfViewer({ tab, onOpenAnother, onPdfDocumentLoaded, viewerRef }
                         zoom={effectiveZoom}
                         active={activeTool === 'form-field'}
                         onFormFieldDrawn={handleFormFieldDrawn}
+                      />
+                      <SignaturePlacementLayer
+                        pageNumber={currentPage}
+                        zoom={effectiveZoom}
+                        active={signaturePlacementMode}
+                        onPlacementComplete={handleSignaturePlaced}
                       />
                       <AnnotationInteractionLayer
                         zoom={effectiveZoom}

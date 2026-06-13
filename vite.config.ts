@@ -19,7 +19,18 @@ export default defineConfig({
           build: {
             outDir: 'dist/main',
             rollupOptions: {
-              external: ['sql.js', 'electron', 'electron-log', 'electron-updater', 'fs-extra'],
+              external: [
+                'sql.js',
+                'electron',
+                'electron-log',
+                'electron-updater',
+                'fs-extra',
+                // @signpdf deps — must be externalized to avoid CJS interop
+                // crash with node-forge/tslib in the bundled chunk
+                '@signpdf/signpdf',
+                '@signpdf/placeholder-pdf-lib',
+                '@signpdf/signer-p12',
+              ],
               output: {
                 format: 'cjs',
                 entryFileNames: '[name].cjs',

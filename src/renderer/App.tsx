@@ -586,6 +586,8 @@ export default function App() {
           key={`signature-${activeDialog === 'signature'}`}
           open={true}
           onClose={closeDialog}
+          activeFile={activeTab?.filePath ?? null}
+          activeFileName={activeTab?.fileName ?? null}
         />
       )}
 

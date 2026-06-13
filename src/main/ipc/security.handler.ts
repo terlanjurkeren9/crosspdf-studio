@@ -5,13 +5,16 @@ import {
   PdfPasswordPayloadSchema,
   PdfEncryptPayloadSchema,
 } from '../../shared/types/ipc.types';
+import { SignDigitalPayloadSchema } from '../../shared/types/signing.types';
 import type { PdfCheckEncryptedResult, PdfPasswordResult } from '../../shared/types/ipc.types';
+import type { SignDigitalResult } from '../../shared/types/signing.types';
 import {
   checkEncrypted,
   decryptWithPassword,
   encryptWithPassword,
   removePassword,
 } from '../services/pdf-security.service';
+import { signPdfDigital } from '../services/pdf-signing.service';
 import { validatePdf } from '../services/qpdf.service';
 import { log } from '../utils/logger';
 
@@ -113,6 +116,24 @@ export function registerSecurityHandlers(): void {
       };
     }
   });
+
+  ipcMain.handle(
+    IPC_CHANNELS.PDF_SIGN_DIGITAL,
+    async (_event, payload: unknown): Promise<SignDigitalResult> => {
+      const parsed = SignDigitalPayloadSchema.safeParse(payload);
+      if (!parsed.success) {
+        return { success: false, error: `Invalid payload: ${parsed.error.message}` };
+      }
+
+      try {
+        return await signPdfDigital(parsed.data);
+      } catch (err) {
+        const msg = (err as Error).message;
+        log.error('pdf:sign-digital failed', { error: msg });
+        return { success: false, error: msg };
+      }
+    }
+  );
 }
 
 /**
