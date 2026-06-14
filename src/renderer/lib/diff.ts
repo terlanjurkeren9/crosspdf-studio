@@ -5,6 +5,24 @@ export interface DiffLine {
   rightLineNum: number | null;
 }
 
+export interface VisualDiffRegion {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+}
+
+export interface VisualDiffPage {
+  pageNumber: number;
+  leftImageUrl: string | null;
+  rightImageUrl: string | null;
+  width: number;
+  height: number;
+  diffPercent: number;
+  regions: VisualDiffRegion[];
+  status: 'equal' | 'changed' | 'added' | 'removed';
+}
+
 /**
  * Simple text-based diff algorithm (LCS-based).
  * Compares two texts line by line and returns diff result.
@@ -70,11 +88,15 @@ export interface CompareResult {
   rightText: string;
   leftFileName: string;
   rightFileName: string;
+  leftPageCount: number;
+  rightPageCount: number;
   diffs: DiffLine[];
+  visualPages: VisualDiffPage[];
   stats: {
     added: number;
     removed: number;
     equal: number;
     total: number;
+    visualChanged: number;
   };
 }

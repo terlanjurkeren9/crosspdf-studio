@@ -439,6 +439,7 @@ export default function App() {
           key={activeTab.id}
           tab={activeTab}
           onOpenAnother={handleOpenFileDialog}
+          onCommandPalette={() => setCommandPaletteOpen(true)}
           onPdfDocumentLoaded={handlePdfDocumentLoaded}
           viewerRef={viewerRef}
         />

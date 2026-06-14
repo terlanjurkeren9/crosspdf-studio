@@ -91,11 +91,18 @@ export interface PdfViewerHandle {
 interface PdfViewerProps {
   tab: TabState;
   onOpenAnother: () => void;
+  onCommandPalette?: () => void;
   onPdfDocumentLoaded?: (doc: PDFDocumentProxy | null) => void;
   viewerRef?: React.RefObject<PdfViewerHandle | null>;
 }
 
-export function PdfViewer({ tab, onOpenAnother, onPdfDocumentLoaded, viewerRef }: PdfViewerProps) {
+export function PdfViewer({
+  tab,
+  onOpenAnother,
+  onCommandPalette,
+  onPdfDocumentLoaded,
+  viewerRef,
+}: PdfViewerProps) {
   const { t } = useTranslation();
   const updateTabState = useDocumentStore((s) => s.updateTabState);
   const closeTab = useDocumentStore((s) => s.closeTab);
@@ -943,6 +950,18 @@ export function PdfViewer({ tab, onOpenAnother, onPdfDocumentLoaded, viewerRef }
     useUIStore.getState().openDialog('signature');
   }, []);
 
+  const handleCompare = useCallback(() => {
+    useUIStore.getState().openDialog('compare');
+  }, []);
+
+  const handleBatch = useCallback(() => {
+    useUIStore.getState().openDialog('batch');
+  }, []);
+
+  const handleValidate = useCallback(() => {
+    useUIStore.getState().openDialog('validate');
+  }, []);
+
   // ── Stamp: placement handler ────────────────────────────────
 
   const handleStampClick = useCallback(
@@ -1480,6 +1499,10 @@ export function PdfViewer({ tab, onOpenAnother, onPdfDocumentLoaded, viewerRef }
         onPdfToImages={handlePdfToImages}
         onImagesToPdf={handleImagesToPdf}
         onSignature={handleSignature}
+        onCompare={handleCompare}
+        onBatch={handleBatch}
+        onValidate={handleValidate}
+        onCommandPalette={onCommandPalette}
         editMode={editMode}
         onEditModeToggle={async () => {
           if (editMode) {

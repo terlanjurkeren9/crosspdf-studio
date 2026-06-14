@@ -55,8 +55,8 @@ test.describe('Compare dialog', () => {
     await expect(fileInputs).toHaveCount(2);
 
     // Verify both Open buttons are visible
-    const openButtons = page.getAllByRole('button', { name: /Open/i });
-    await expect(openButtons).toHaveLength(2);
+    const openButtons = page.getByRole('button', { name: /Open/i });
+    await expect(openButtons).toHaveCount(2);
 
     // Verify Compare button is disabled when no files selected
     const compareBtn = page.getByRole('button', { name: /Compare/i });
@@ -95,8 +95,8 @@ test.describe('Compare dialog', () => {
     await expect(page.getByText('Compare Documents')).toBeVisible({ timeout: 5000 });
 
     // Click first Open button
-    const openButtons = page.getAllByRole('button', { name: /Open/i });
-    await openButtons[0].click();
+    const openButtons = page.getByRole('button', { name: /Open/i });
+    await openButtons.first().click();
 
     // Wait for file to load and name to appear
     await page.waitForTimeout(500);
