@@ -699,7 +699,7 @@ export function PdfObjectEditLayer({ pageNumber, zoom, editMode, tabId, disabled
                 top: displayY * zoom,
                 width: op.rect.width * zoom,
                 height: op.rect.height * zoom,
-                zIndex: isDragging ? 25 : 10,
+                zIndex: isDragging ? 25 : 21,
               }}
               onMouseDown={(e) => handleCommittedOpMouseDown(e, op)}
               onClick={(e) => e.stopPropagation()}
@@ -744,7 +744,7 @@ export function PdfObjectEditLayer({ pageNumber, zoom, editMode, tabId, disabled
                 width: op.rect.width * zoom,
                 height: op.rect.height * zoom,
                 backgroundColor: op.fillColor ?? '#fff',
-                zIndex: 10,
+                zIndex: 21,
               }}
               onMouseDown={(e) => handleCommittedOpMouseDown(e, op)}
             />
@@ -764,7 +764,7 @@ export function PdfObjectEditLayer({ pageNumber, zoom, editMode, tabId, disabled
                 backgroundImage: `url(${imageBlobUrls.get(op.id)})`,
                 backgroundSize: 'cover',
                 backgroundPosition: 'center',
-                zIndex: 10,
+                zIndex: 21,
               }}
               onMouseDown={(e) => handleCommittedOpMouseDown(e, op)}
             />
