@@ -5,15 +5,21 @@ type ImageRequestParams =
       pageNumbers: number[];
       scale: number;
       password?: string;
+      format?: 'png' | 'jpeg';
+      quality?: number;
     }
   | { type: 'images-to-pdf'; images: { bytes: ArrayBuffer; mimeType: string }[] };
 
 interface PdfToImagesResult {
-  images: { pageNumber: number; pngBytes: ArrayBuffer }[];
+  images: { pageNumber: number; bytes: ArrayBuffer; mimeType: string }[];
 }
 
 type ImageResponse =
-  | { id: string; type: 'success-images'; images: { pageNumber: number; pngBytes: ArrayBuffer }[] }
+  | {
+      id: string;
+      type: 'success-images';
+      images: { pageNumber: number; bytes: ArrayBuffer; mimeType: string }[];
+    }
   | { id: string; type: 'success-pdf'; pdfBytes: ArrayBuffer }
   | { id: string; type: 'error'; message: string };
 
@@ -100,7 +106,9 @@ export async function convertPdfToImages(
   pdfBytes: ArrayBuffer,
   pageNumbers: number[],
   scale: number = 2,
-  password?: string
+  password?: string,
+  format: 'png' | 'jpeg' = 'png',
+  quality: number = 0.92
 ): Promise<PdfToImagesResult> {
   const worker = await getWorker();
   const result = await sendRequest(worker, {
@@ -109,6 +117,8 @@ export async function convertPdfToImages(
     pageNumbers,
     scale,
     ...(password ? { password } : {}),
+    format,
+    quality,
   });
   if (result.type === 'error') throw new Error(result.message);
   if (result.type === 'success-pdf') throw new Error('Unexpected PDF result');

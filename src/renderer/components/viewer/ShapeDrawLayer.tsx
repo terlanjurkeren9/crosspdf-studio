@@ -202,10 +202,12 @@ export function ShapeDrawLayer({
       // Calculate angle for arrowhead
       const angle = Math.atan2(vy2 - vy1, vx2 - vx1);
       const headLen = 10 * z;
-      const arrowX1 = vx2 - headLen * Math.cos(angle - Math.PI / 6);
-      const arrowY1 = vy2 - headLen * Math.sin(angle - Math.PI / 6);
-      const arrowX2 = vx2 - headLen * Math.cos(angle + Math.PI / 6);
-      const arrowY2 = vy2 - headLen * Math.sin(angle + Math.PI / 6);
+      const a1 = angle + Math.PI * 0.85;
+      const a2 = angle - Math.PI * 0.85;
+      const arrowX1 = vx2 + headLen * Math.cos(a1);
+      const arrowY1 = vy2 + headLen * Math.sin(a1);
+      const arrowX2 = vx2 + headLen * Math.cos(a2);
+      const arrowY2 = vy2 + headLen * Math.sin(a2);
 
       return (
         <svg className="absolute inset-0 w-full h-full pointer-events-none overflow-visible">

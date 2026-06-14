@@ -13,6 +13,8 @@ interface PdfToImagesRequest {
   pageNumbers: number[];
   scale: number;
   password?: string;
+  format?: 'png' | 'jpeg';
+  quality?: number;
 }
 
 interface ImagesToPdfRequest {
@@ -26,7 +28,7 @@ type ImageWorkerRequest = PdfToImagesRequest | ImagesToPdfRequest;
 interface PdfToImagesSuccess {
   id: string;
   type: 'success-images';
-  images: { pageNumber: number; pngBytes: ArrayBuffer }[];
+  images: { pageNumber: number; bytes: ArrayBuffer; mimeType: string }[];
 }
 
 interface ImagesToPdfSuccess {
@@ -49,8 +51,10 @@ async function handlePdfToImages(
   pdfBytes: ArrayBuffer,
   pageNumbers: number[],
   scale: number,
-  password?: string
-): Promise<{ pageNumber: number; pngBytes: ArrayBuffer }[]> {
+  password?: string,
+  format: 'png' | 'jpeg' = 'png',
+  quality: number = 0.92
+): Promise<{ pageNumber: number; bytes: ArrayBuffer; mimeType: string }[]> {
   const docParams: Record<string, unknown> = {
     data: pdfBytes.slice(0),
     useWorkerFetch: false,
@@ -68,7 +72,9 @@ async function handlePdfToImages(
     throw new Error('Failed to load PDF document: empty or invalid.');
   }
 
-  const results: { pageNumber: number; pngBytes: ArrayBuffer }[] = [];
+  const results: { pageNumber: number; bytes: ArrayBuffer; mimeType: string }[] = [];
+  const type = format === 'jpeg' ? 'image/jpeg' : 'image/png';
+  const mimeType = type;
 
   for (const pageNum of pageNumbers) {
     if (pageNum < 1 || pageNum > pdfDoc.numPages) {
@@ -89,10 +95,13 @@ async function handlePdfToImages(
       viewport,
     } as unknown as Parameters<typeof page.render>[0]).promise;
 
-    const blob = await canvas.convertToBlob({ type: 'image/png' });
-    const pngBytes = await blob.arrayBuffer();
+    const blob = await canvas.convertToBlob({
+      type,
+      quality: format === 'jpeg' ? quality : undefined,
+    });
+    const bytes = await blob.arrayBuffer();
 
-    results.push({ pageNumber: pageNum, pngBytes });
+    results.push({ pageNumber: pageNum, bytes, mimeType });
     page.cleanup();
   }
 
@@ -149,7 +158,9 @@ self.onmessage = async (event: MessageEvent<ImageWorkerRequest>) => {
           msg.pdfBytes,
           msg.pageNumbers,
           msg.scale,
-          msg.password
+          msg.password,
+          msg.format,
+          msg.quality
         );
         self.postMessage({
           id: msg.id,

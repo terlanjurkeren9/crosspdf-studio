@@ -31,6 +31,8 @@ import { RedactionDrawLayer } from './RedactionDrawLayer';
 import { FormFieldDrawLayer } from './FormFieldDrawLayer';
 import { SignaturePlacementLayer } from './SignaturePlacementLayer';
 import { AnnotationInteractionLayer } from './AnnotationInteractionLayer';
+import { FreehandDrawLayer } from './FreehandDrawLayer';
+import { ShapeDrawLayer } from './ShapeDrawLayer';
 import { applyStamps, addFormFields } from '../../services/pdf-ops.service';
 import type { FormFieldSpec } from '../../services/pdf-ops.service';
 import { FormFieldSettingsDialog } from '../dialogs/FormFieldSettingsDialog';
@@ -1138,7 +1140,21 @@ export function PdfViewer({ tab, onOpenAnother, onPdfDocumentLoaded, viewerRef }
       color: string,
       strokeWidth: number
     ) => {
-      const ann = createAnnotation(type, pageNumber, { points, color, strokeWidth });
+      const [x1, y1, x2, y2] = points;
+      const rect =
+        type === 'rectangle' || type === 'ellipse'
+          ? {
+              x: Math.min(x1, x2),
+              y: Math.min(y1, y2),
+              width: Math.abs(x2 - x1),
+              height: Math.abs(y2 - y1),
+            }
+          : undefined;
+      const ann = createAnnotation(type, pageNumber, {
+        ...(rect ? { rect } : { points }),
+        color,
+        strokeWidth,
+      });
       useAnnotationStore.getState().addAnnotation(tab.id, ann);
     },
     [tab.id]
@@ -1585,6 +1601,24 @@ export function PdfViewer({ tab, onOpenAnother, onPdfDocumentLoaded, viewerRef }
                         zoom={effectiveZoom}
                         active={signaturePlacementMode}
                         onPlacementComplete={handleSignaturePlaced}
+                      />
+                      <FreehandDrawLayer
+                        pageNumber={currentPage}
+                        zoom={effectiveZoom}
+                        active={activeTool === 'freehand'}
+                        onFreehandDrawn={handleFreehandDrawn}
+                      />
+                      <ShapeDrawLayer
+                        pageNumber={currentPage}
+                        zoom={effectiveZoom}
+                        active={
+                          activeTool === 'rectangle' ||
+                          activeTool === 'ellipse' ||
+                          activeTool === 'line' ||
+                          activeTool === 'arrow'
+                        }
+                        activeTool={activeTool}
+                        onShapeDrawn={handleShapeDrawn}
                       />
                       <AnnotationInteractionLayer
                         zoom={effectiveZoom}

@@ -113,8 +113,9 @@ export function PdfToImagesDialog({
 
       let writeErrors = 0;
       for (const img of images) {
-        const outPath = `${dirPath}/page_${img.pageNumber}.png`;
-        const writeResult = await window.crosspdf.writeFile(outPath, img.pngBytes);
+        const ext = img.mimeType === 'image/jpeg' ? 'jpg' : 'png';
+        const outPath = `${dirPath}/page_${img.pageNumber}.${ext}`;
+        const writeResult = await window.crosspdf.writeFile(outPath, img.bytes);
         if (!writeResult.success) writeErrors++;
       }
 

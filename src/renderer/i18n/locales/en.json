@@ -20,7 +20,7 @@
     "split": "Split PDF",
     "convert": "Convert to Images",
     "ocr": "OCR Document",
-    "realNotice": "Batch merge is fully functional. Split, convert, and OCR operations are planned and will fail if queued."
+    "realNotice": "Batch merge, convert, and OCR are fully functional. Split operations are planned and will fail if queued."
   },
   "validate": {
     "title": "Validate PDF",

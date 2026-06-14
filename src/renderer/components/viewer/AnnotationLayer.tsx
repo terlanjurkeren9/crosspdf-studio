@@ -452,7 +452,7 @@ function AnnotationRenderer({
 
 function arrowHead(x1: number, y1: number, x2: number, y2: number, size: number): string {
   const angle = Math.atan2(y2 - y1, x2 - x1);
-  const a1 = angle + Math.PI * 0.8;
-  const a2 = angle - Math.PI * 0.8;
-  return `${x2},${y2} ${x2 - size * Math.cos(a1)},${y2 - size * Math.sin(a1)} ${x2 - size * Math.cos(a2)},${y2 - size * Math.sin(a2)}`;
+  const a1 = angle + Math.PI * 0.85;
+  const a2 = angle - Math.PI * 0.85;
+  return `${x2},${y2} ${x2 + size * Math.cos(a1)},${y2 + size * Math.sin(a1)} ${x2 + size * Math.cos(a2)},${y2 + size * Math.sin(a2)}`;
 }
