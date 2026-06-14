@@ -49,8 +49,7 @@ export function PdfObjectEditLayer({ pageNumber, zoom, editMode, tabId, disabled
   const [formatting, setFormatting] = useState<TextFormatting>({ ...DEFAULT_FORMATTING });
 
   // Drag offsets for committed ops (op.id → { x, y })
-  const dragOffsets = useRef<Map<string, { x: number; y: number }>>(new Map());
-  const [, setDragTick] = useState(0);
+  const [dragOffsets, setDragOffsets] = useState<Map<string, { x: number; y: number }>>(new Map());
   const [draggingOpId, setDraggingOpId] = useState<string | null>(null);
   const dragStartRef = useRef<{ x: number; y: number; origX: number; origY: number } | null>(null);
 
@@ -217,11 +216,14 @@ export function PdfObjectEditLayer({ pageNumber, zoom, editMode, tabId, disabled
         if (!container) return;
         const dx = (e.clientX - dragStartRef.current.x) / zoom;
         const dy = (e.clientY - dragStartRef.current.y) / zoom;
-        dragOffsets.current.set(draggingOpId, {
-          x: dragStartRef.current.origX + dx,
-          y: dragStartRef.current.origY + dy,
+        setDragOffsets((prev) => {
+          const next = new Map(prev);
+          next.set(draggingOpId, {
+            x: dragStartRef.current!.origX + dx,
+            y: dragStartRef.current!.origY + dy,
+          });
+          return next;
         });
-        setDragTick((t) => t + 1); // force re-render
       }
     },
     [isDrawingArea, drawStart, zoom, draggingOpId]
@@ -683,19 +685,24 @@ export function PdfObjectEditLayer({ pageNumber, zoom, editMode, tabId, disabled
               </div>
             );
           }
+          const isDragging = draggingOpId === op.id;
+          const offset = isDragging ? dragOffsets.get(op.id) : null;
+          const displayX = offset ? offset.x : op.rect.x;
+          const displayY = offset ? offset.y : op.rect.y;
           return (
             <div
               key={op.id}
               data-committed-op
-              className={`absolute bg-white border border-gray-300/50 rounded-sm cursor-move hover:border-blue-400 hover:bg-blue-50/30 ${draggingOpId === op.id ? 'border-blue-500 bg-blue-50 shadow-lg z-25' : 'pointer-events-auto'}`}
+              className={`absolute bg-white border border-gray-300/50 rounded-sm cursor-move hover:border-blue-400 hover:bg-blue-50/30 ${isDragging ? 'border-blue-500 bg-blue-50 shadow-lg z-25' : 'pointer-events-auto'}`}
               style={{
-                left: op.rect.x * zoom,
-                top: op.rect.y * zoom,
+                left: displayX * zoom,
+                top: displayY * zoom,
                 width: op.rect.width * zoom,
                 height: op.rect.height * zoom,
-                zIndex: draggingOpId === op.id ? 25 : 10,
+                zIndex: isDragging ? 25 : 10,
               }}
               onMouseDown={(e) => handleCommittedOpMouseDown(e, op)}
+              onClick={(e) => e.stopPropagation()}
               onDoubleClick={(e) => {
                 e.stopPropagation();
                 startEditCommittedOp(op);
