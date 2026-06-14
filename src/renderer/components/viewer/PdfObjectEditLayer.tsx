@@ -60,7 +60,11 @@ export function PdfObjectEditLayer({ pageNumber, zoom, editMode, tabId, disabled
     (e: React.MouseEvent) => {
       if (!editMode || disabled) return;
 
-      // Temporarily disable pointer events on overlay to allow elementFromPoint to hit underlying elements
+      // Ignore clicks that originate from edit popups (Apply/Cancel buttons etc)
+      const target = e.target as HTMLElement;
+      if (target.closest?.('[data-edit-popup]')) return;
+
+      // Temporarily disable pointer events on overlay to allow elementFromPoint to hit underlying text layer
       const overlay = containerRef.current;
       if (!overlay) return;
 
@@ -72,12 +76,6 @@ export function PdfObjectEditLayer({ pageNumber, zoom, editMode, tabId, disabled
       overlay.style.pointerEvents = wasPointerEvents;
 
       if (!element) return;
-
-      // Ignore clicks on the edit popups themselves (Apply/Cancel buttons)
-      if (element.closest?.('button') || element.closest?.('[data-edit-popup]')) {
-        overlay.style.pointerEvents = wasPointerEvents;
-        return;
-      }
 
       const span = element.closest?.('.textLayer span') as HTMLElement | null;
       if (!span) {
