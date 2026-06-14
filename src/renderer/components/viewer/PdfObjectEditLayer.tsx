@@ -288,8 +288,14 @@ export function PdfObjectEditLayer({ pageNumber, zoom, editMode, tabId, disabled
           return;
         }
         const existingOp = committedOps.find((o) => o.id === opts.editExistingOpId);
-        const op: PdfObjectEditOperation = {
-          id: `text-replace-${Date.now()}`,
+        // Also remove paired cover if applicable
+        const pairedCover = committedOps.find(
+          (o) => o.type === 'remove-area' && o.coverFor === opts.editExistingOpId
+        );
+        const textOpId = `text-replace-${Date.now()}`;
+        const coverOpId = `cover-${Date.now()}`;
+        const textOp: PdfObjectEditOperation = {
+          id: textOpId,
           type: 'replace-text' as const,
           pageNumber,
           rect:
@@ -319,15 +325,27 @@ export function PdfObjectEditLayer({ pageNumber, zoom, editMode, tabId, disabled
               ? (existingOp.fontFamily ?? formatting.fontFamily ?? 'helvetica')
               : (formatting.fontFamily ?? 'helvetica'),
         };
+        const newCoverOp: PdfObjectEditOperation = {
+          id: coverOpId,
+          type: 'remove-area' as const,
+          pageNumber,
+          rect: textOp.rect,
+          fillColor: '#ffffff',
+          coverFor: textOpId,
+        };
         removeOperation(tabId, opts.editExistingOpId);
-        addOperation(tabId, op);
+        if (pairedCover) removeOperation(tabId, pairedCover.id);
+        addOperation(tabId, newCoverOp);
+        addOperation(tabId, textOp);
         setEditingCommittedOp(null);
         setEditingCommittedText('');
         return;
       }
       if (!textSelection || !inlineText.trim()) return;
-      const op: PdfObjectEditOperation = {
-        id: `text-replace-${Date.now()}`,
+      const textOpId = `text-replace-${Date.now()}`;
+      const coverOpId = `cover-${Date.now()}`;
+      const textOp: PdfObjectEditOperation = {
+        id: textOpId,
         type: 'replace-text' as const,
         pageNumber,
         rect: textSelection.rect,
@@ -339,7 +357,16 @@ export function PdfObjectEditLayer({ pageNumber, zoom, editMode, tabId, disabled
         color: formatting.color,
         fontFamily: formatting.fontFamily,
       };
-      addOperation(tabId, op);
+      const coverOp: PdfObjectEditOperation = {
+        id: coverOpId,
+        type: 'remove-area' as const,
+        pageNumber,
+        rect: textSelection.rect,
+        fillColor: '#ffffff',
+        coverFor: textOpId,
+      };
+      addOperation(tabId, coverOp);
+      addOperation(tabId, textOp);
       setTextSelection(null);
       setInlineText('');
     },
@@ -440,6 +467,13 @@ export function PdfObjectEditLayer({ pageNumber, zoom, editMode, tabId, disabled
       if (e.shiftKey) {
         // Shift+click = remove
         removeOperation(tabId, op.id);
+        // If replace-text, also remove paired cover
+        if (op.type === 'replace-text') {
+          const pairedCover = committedOps.find(
+            (o) => o.type === 'remove-area' && o.coverFor === op.id
+          );
+          if (pairedCover) removeOperation(tabId, pairedCover.id);
+        }
         return;
       }
       if (e.detail === 2) {
@@ -447,13 +481,13 @@ export function PdfObjectEditLayer({ pageNumber, zoom, editMode, tabId, disabled
         startEditCommittedOp(op);
         return;
       }
-      // Single click: start drag
-      const rect = 'rect' in op ? op.rect : null;
-      if (!rect) return;
+      // Single click: start drag — only for replace-text (static covers are non-interactive)
+      if (op.type !== 'replace-text') return;
+      const rect = op.rect;
       setDraggingOpId(op.id);
       dragStartRef.current = { x: e.clientX, y: e.clientY, origX: rect.x, origY: rect.y };
     },
-    [editMode, tabId, removeOperation, startEditCommittedOp]
+    [editMode, tabId, removeOperation, committedOps, startEditCommittedOp]
   );
 
   if (!editMode) return null;
@@ -749,20 +783,21 @@ export function PdfObjectEditLayer({ pageNumber, zoom, editMode, tabId, disabled
           );
         }
         if (op.type === 'remove-area') {
+          const isStatic = !!op.coverFor;
           return (
             <div
               key={op.id}
-              data-committed-op
-              className="absolute border border-red-300/50 rounded-sm cursor-move hover:border-red-400"
+              data-committed-op={isStatic ? undefined : true}
+              className={`absolute border border-gray-300/30 rounded-sm ${isStatic ? 'pointer-events-none' : 'cursor-move hover:border-red-400 pointer-events-auto'}`}
               style={{
                 left: op.rect.x * zoom,
                 top: op.rect.y * zoom,
                 width: op.rect.width * zoom,
                 height: op.rect.height * zoom,
                 backgroundColor: op.fillColor ?? '#fff',
-                zIndex: 21,
+                zIndex: isStatic ? 12 : 21,
               }}
-              onMouseDown={(e) => handleCommittedOpMouseDown(e, op)}
+              onMouseDown={isStatic ? undefined : (e) => handleCommittedOpMouseDown(e, op)}
             />
           );
         }

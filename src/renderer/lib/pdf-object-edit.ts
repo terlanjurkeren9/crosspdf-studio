@@ -28,6 +28,8 @@ export type PdfObjectEditOperation =
       pageNumber: number;
       rect: { x: number; y: number; width: number; height: number };
       fillColor?: string;
+      /** If set, this cover is paired with a replace-text op — non-draggable static cover */
+      coverFor?: string;
     }
   | {
       id: string;
