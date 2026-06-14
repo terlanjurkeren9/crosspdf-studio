@@ -129,8 +129,9 @@ export function PdfObjectEditLayer({ pageNumber, zoom, editMode, tabId, disabled
       const width = rect.width / zoom;
       const height = rect.height / zoom;
 
-      // Approximate font size from span style or computed
-      const fontSize = parseFloat(getComputedStyle(span).fontSize) || 12;
+      // PDF.js text spans have CSS font-size already at screen scale;
+      // convert to PDF-space so overlay/textarea multiply by zoom correctly
+      const fontSize = (parseFloat(getComputedStyle(span).fontSize) || 12) / zoom;
 
       setTextSelection({
         text,
@@ -173,7 +174,7 @@ export function PdfObjectEditLayer({ pageNumber, zoom, editMode, tabId, disabled
       const relY = (rect.top - containerRect.top) / zoom;
       const width = rect.width / zoom;
       const height = rect.height / zoom;
-      const fontSize = parseFloat(getComputedStyle(span).fontSize) || 12;
+      const fontSize = (parseFloat(getComputedStyle(span).fontSize) || 12) / zoom;
 
       setTextSelection({
         text,
