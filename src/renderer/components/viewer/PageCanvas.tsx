@@ -5,6 +5,7 @@ import { usePdfPage } from '../../hooks/usePdfPage';
 import { PageTextLayer } from './PageTextLayer';
 import { SearchHighlightLayer } from './SearchHighlightLayer';
 import { AnnotationLayer } from './AnnotationLayer';
+import { PdfObjectEditLayer } from './PdfObjectEditLayer';
 import { RedactionDrawLayer } from './RedactionDrawLayer';
 import { FreehandDrawLayer } from './FreehandDrawLayer';
 import { ShapeDrawLayer } from './ShapeDrawLayer';
@@ -62,6 +63,9 @@ interface PageCanvasProps {
     id: string,
     rect: { x: number; y: number; width: number; height: number }
   ) => void;
+  // Edit mode for PDF object editing
+  editMode?: boolean;
+  tabId?: string;
 }
 
 const PageCanvasInner = memo(function PageCanvas({
@@ -84,6 +88,8 @@ const PageCanvasInner = memo(function PageCanvas({
   onShapeDrawn,
   onAnnotationMoved,
   onAnnotationResized,
+  editMode = false,
+  tabId = '',
 }: PageCanvasProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const { render, cancel } = usePdfPage(pdfDocument, pageNumber, rotation);
@@ -228,6 +234,15 @@ const PageCanvasInner = memo(function PageCanvas({
               onAnnotationDoubleClick={onAnnotationDoubleClick}
               onAnnotationMoved={onAnnotationMoved}
               onAnnotationResized={onAnnotationResized}
+            />
+          )}
+          {editMode && (
+            <PdfObjectEditLayer
+              pageNumber={pageNumber}
+              zoom={zoom}
+              editMode={editMode}
+              tabId={tabId ?? ''}
+              disabled={activeTool != null && activeTool !== 'select' && activeTool !== 'hand'}
             />
           )}
         </>

@@ -11,6 +11,7 @@ import type { TabState } from '../../stores/document.store';
 import { PageList } from './PageList';
 import { PageTextLayer } from './PageTextLayer';
 import { AnnotationLayer } from './AnnotationLayer';
+import { PdfObjectEditLayer } from './PdfObjectEditLayer';
 import { ViewerToolbar } from './ViewerToolbar';
 import { ViewerStatusBar } from './ViewerStatusBar';
 import { AlertCircle } from 'lucide-react';
@@ -49,6 +50,8 @@ import {
   saveAsDefaultPath,
 } from '../../lib/file-shortcuts';
 import { embedAnnotationsInPdf, extractAnnotationsFromPdf } from '../../lib/pdf-annotation-embed';
+import { applyPdfObjectEdits } from '../../lib/pdf-object-edit';
+import { usePdfObjectEditStore } from '../../stores/pdf-object-edit.store';
 
 const EMPTY_ANNOTATIONS: Annotation[] = [];
 
@@ -104,6 +107,7 @@ export function PdfViewer({ tab, onOpenAnother, onPdfDocumentLoaded, viewerRef }
   );
   const activeTool = useAnnotationStore((s) => s.activeTool);
   const setActiveTool = useAnnotationStore((s) => s.setActiveTool);
+  const [editMode, setEditMode] = useState(false);
   const undo = useAnnotationStore((s) => s.undo);
   const redo = useAnnotationStore((s) => s.redo);
   const signaturePlacementMode = useUIStore((s) => s.signaturePlacementMode);
@@ -743,13 +747,23 @@ export function PdfViewer({ tab, onOpenAnother, onPdfDocumentLoaded, viewerRef }
     if (!data) return null;
 
     try {
-      return await embedAnnotationsInPdf(data, annotationsRef.current);
+      // Apply PDF object edits first (text replace, remove area, replace image)
+      // Don't use store.applyEdits here - we only clear after successful write
+      const pendingOps = usePdfObjectEditStore.getState().getOperations(tab.id);
+      let dataWithEdits: ArrayBuffer = data;
+      if (pendingOps.length > 0) {
+        dataWithEdits = await applyPdfObjectEdits(data, pendingOps);
+      }
+
+      // Then embed annotations on top
+      const resultBytes = await embedAnnotationsInPdf(dataWithEdits, annotationsRef.current);
+      return resultBytes;
     } catch (err) {
-      console.error('Failed to embed annotations in PDF:', err);
+      console.error('Failed to build annotated PDF:', err);
       useUIStore.getState().showToast(t('viewer.saveFailed'));
       return null;
     }
-  }, [readCurrentPdfBytes, t]);
+  }, [readCurrentPdfBytes, tab.id, t]);
 
   const handleSaveAs = useCallback(async () => {
     const data = await buildAnnotatedPdfBytes();
@@ -773,13 +787,15 @@ export function PdfViewer({ tab, onOpenAnother, onPdfDocumentLoaded, viewerRef }
     useUIStore.getState().showToast(t('viewer.saved'));
     emitE2EFileAction('save-as', saveResult.filePath);
     const fileName = saveResult.filePath.split(/[/\\]/).pop() ?? saveResult.filePath;
+    // Clear pending object edit operations after successful save
+    usePdfObjectEditStore.getState().clearOperations(tab.id);
     window.dispatchEvent(
       new CustomEvent('crosspdf:open-file', { detail: { filePath: saveResult.filePath } })
     );
     window.crosspdf.upsertRecentDocument(saveResult.filePath, fileName).catch(() => {
       // Ignore — recent documents update is best-effort.
     });
-  }, [buildAnnotatedPdfBytes, tab.fileName, t]);
+  }, [buildAnnotatedPdfBytes, tab.fileName, tab.id, t]);
 
   const handleSave = useCallback(async () => {
     if (!tab.filePath) {
@@ -798,10 +814,12 @@ export function PdfViewer({ tab, onOpenAnother, onPdfDocumentLoaded, viewerRef }
 
     useUIStore.getState().showToast(t('viewer.saved'));
     emitE2EFileAction('save', tab.filePath);
+    // Clear pending object edit operations after successful save
+    usePdfObjectEditStore.getState().clearOperations(tab.id);
     window.crosspdf.upsertRecentDocument(tab.filePath, tab.fileName).catch(() => {
       // Ignore — recent documents update is best-effort.
     });
-  }, [buildAnnotatedPdfBytes, handleSaveAs, tab.fileName, tab.filePath, t]);
+  }, [buildAnnotatedPdfBytes, handleSaveAs, tab.fileName, tab.filePath, tab.id, t]);
 
   const handlePrint = useCallback(() => {
     emitE2EFileAction('print', tab.filePath);
@@ -1461,6 +1479,14 @@ export function PdfViewer({ tab, onOpenAnother, onPdfDocumentLoaded, viewerRef }
         onPdfToImages={handlePdfToImages}
         onImagesToPdf={handleImagesToPdf}
         onSignature={handleSignature}
+        editMode={editMode}
+        onEditModeToggle={() => {
+          setEditMode(!editMode);
+          // Clear active drawing tool when entering edit mode so click hit-testing works
+          if (!editMode) {
+            setActiveTool('select');
+          }
+        }}
       />
 
       {/* Content area */}
@@ -1584,6 +1610,17 @@ export function PdfViewer({ tab, onOpenAnother, onPdfDocumentLoaded, viewerRef }
                           }
                         }}
                       />
+                      {editMode && (
+                        <PdfObjectEditLayer
+                          pageNumber={currentPage}
+                          zoom={effectiveZoom}
+                          editMode={editMode}
+                          tabId={tab.id}
+                          disabled={
+                            activeTool != null && activeTool !== 'select' && activeTool !== 'hand'
+                          }
+                        />
+                      )}
                       <RedactionDrawLayer
                         pageNumber={currentPage}
                         zoom={effectiveZoom}
@@ -1684,6 +1721,8 @@ export function PdfViewer({ tab, onOpenAnother, onPdfDocumentLoaded, viewerRef }
             onAnnotationResized={(id, rect) =>
               updateAnnotation(tab.id, id, { rect } as Partial<Annotation>)
             }
+            editMode={editMode}
+            tabId={tab.id}
           />
         )}
       </div>

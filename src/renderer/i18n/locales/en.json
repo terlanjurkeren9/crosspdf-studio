@@ -189,7 +189,8 @@
     "zoomIn": "Zoom in",
     "zoomOut": "Zoom out",
     "zoomSlider": "Zoom slider",
-    "digitalSignature": "Digital Signature"
+    "digitalSignature": "Digital Signature",
+    "editMode": "Edit Mode"
   },
   "preferences": {
     "actualSize": "Actual Size",

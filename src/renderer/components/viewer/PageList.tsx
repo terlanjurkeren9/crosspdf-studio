@@ -52,6 +52,9 @@ interface PageListProps {
     id: string,
     rect: { x: number; y: number; width: number; height: number }
   ) => void;
+  // Edit mode for PDF object editing
+  editMode?: boolean;
+  tabId?: string;
 }
 
 export function PageList({
@@ -77,6 +80,8 @@ export function PageList({
   onShapeDrawn,
   onAnnotationMoved,
   onAnnotationResized,
+  editMode = false,
+  tabId = '',
 }: PageListProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const observerRef = useRef<IntersectionObserver | null>(null);
@@ -236,6 +241,8 @@ export function PageList({
                   onShapeDrawn={onShapeDrawn}
                   onAnnotationMoved={onAnnotationMoved}
                   onAnnotationResized={onAnnotationResized}
+                  editMode={editMode}
+                  tabId={tabId}
                 />
               ) : (
                 <div

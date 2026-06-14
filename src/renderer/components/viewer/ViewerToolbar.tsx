@@ -18,6 +18,7 @@ import {
   LockKeyhole,
   MousePointer2,
   PenTool,
+  Edit3,
   Pencil,
   Square,
   Circle,
@@ -95,6 +96,9 @@ interface ViewerToolbarProps {
   onPdfToImages?: () => void;
   onImagesToPdf?: () => void;
   onSignature?: () => void;
+
+  editMode: boolean;
+  onEditModeToggle: () => void;
 }
 
 const ANNOTATION_TOOLS: {
@@ -161,6 +165,8 @@ export function ViewerToolbar({
   onPdfToImages,
   onImagesToPdf,
   onSignature,
+  editMode,
+  onEditModeToggle,
 }: ViewerToolbarProps) {
   const { t } = useTranslation();
   const handleZoomSlider = useCallback(
@@ -336,6 +342,14 @@ export function ViewerToolbar({
             <PenTool className="h-4 w-4" />
           </IconButton>
         )}
+        <IconButton
+          label={t('viewer.editMode')}
+          onClick={onEditModeToggle}
+          active={editMode}
+          disabled={disabled}
+        >
+          <Edit3 className="h-4 w-4" />
+        </IconButton>
       </ToolbarGroup>
 
       <div className="flex-1" />
