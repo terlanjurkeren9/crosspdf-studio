@@ -787,8 +787,6 @@ export function PdfViewer({ tab, onOpenAnother, onPdfDocumentLoaded, viewerRef }
     useUIStore.getState().showToast(t('viewer.saved'));
     emitE2EFileAction('save-as', saveResult.filePath);
     const fileName = saveResult.filePath.split(/[/\\]/).pop() ?? saveResult.filePath;
-    // Clear pending object edit operations after successful save
-    usePdfObjectEditStore.getState().clearOperations(tab.id);
     window.dispatchEvent(
       new CustomEvent('crosspdf:open-file', { detail: { filePath: saveResult.filePath } })
     );
@@ -814,9 +812,8 @@ export function PdfViewer({ tab, onOpenAnother, onPdfDocumentLoaded, viewerRef }
 
     useUIStore.getState().showToast(t('viewer.saved'));
     emitE2EFileAction('save', tab.filePath);
-    // Clear pending object edit operations after successful save
-    usePdfObjectEditStore.getState().clearOperations(tab.id);
-    // Reopen the file to reflect object edits in the viewer
+    // Reopen the file to reflect object edits; clearOperations is unnecessary
+    // because the reopened tab has fresh state — clearing early causes a flash
     window.dispatchEvent(
       new CustomEvent('crosspdf:open-file', { detail: { filePath: tab.filePath } })
     );
@@ -1495,7 +1492,6 @@ export function PdfViewer({ tab, onOpenAnother, onPdfDocumentLoaded, viewerRef }
                 if (data) {
                   const edited = await applyPdfObjectEdits(data, pendingOps);
                   await window.crosspdf.writeFile(tab.filePath, edited);
-                  usePdfObjectEditStore.getState().clearOperations(tab.id);
                   window.dispatchEvent(
                     new CustomEvent('crosspdf:open-file', { detail: { filePath: tab.filePath } })
                   );
