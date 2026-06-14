@@ -579,7 +579,7 @@ export function PdfObjectEditLayer({ pageNumber, zoom, editMode, tabId, disabled
             value={inlineText}
             onChange={(e) => setInlineText(e.target.value)}
             onKeyDown={(e) => {
-              if (e.key === 'Enter' && !e.shiftKey) {
+              if (e.key === 'Enter' && e.shiftKey) {
                 e.preventDefault();
                 commitTextReplace();
               }
@@ -747,8 +747,8 @@ export function PdfObjectEditLayer({ pageNumber, zoom, editMode, tabId, disabled
               style={{
                 left: op.rect.x * zoom,
                 top: op.rect.y * zoom,
-                width: op.rect.width * zoom,
-                height: op.rect.height * zoom,
+                minWidth: op.rect.width * zoom,
+                minHeight: op.rect.height * zoom,
                 zIndex: isDragging ? 25 : 21,
               }}
               onMouseDown={(e) => handleCommittedOpMouseDown(e, op)}
@@ -759,7 +759,7 @@ export function PdfObjectEditLayer({ pageNumber, zoom, editMode, tabId, disabled
               }}
             >
               <span
-                className="select-none"
+                className="select-none whitespace-pre-wrap break-words"
                 style={{
                   fontSize: op.fontSize * zoom,
                   fontWeight: op.bold ? 'bold' : 'normal',
@@ -772,9 +772,7 @@ export function PdfObjectEditLayer({ pageNumber, zoom, editMode, tabId, disabled
                       : op.fontFamily === 'times'
                         ? 'serif'
                         : 'sans-serif',
-                  lineHeight: `${op.fontSize * zoom * 1.2}px`,
-                  overflow: 'hidden',
-                  whiteSpace: 'nowrap',
+                  lineHeight: `${op.fontSize * zoom * 1.3}px`,
                 }}
               >
                 {op.text}

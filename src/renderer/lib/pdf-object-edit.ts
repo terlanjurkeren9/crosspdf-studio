@@ -146,11 +146,18 @@ export async function applyPdfObjectEdits(
       } else if (op.type === 'replace-text') {
         const font = resolveFont(op);
         const { r, g, b } = hexToRgb(op.color ?? '#000000');
+        const lineHeight = op.fontSize * 1.3;
+        const lines = op.text.split('\n');
+        const totalHeight = Math.max(op.rect.height, lines.length * lineHeight);
+        const maxLineWidth = Math.max(
+          op.rect.width,
+          ...lines.map((l) => font.widthOfTextAtSize(l, op.fontSize))
+        );
         const pdfRect = {
           x: op.rect.x,
-          y: pageHeight - op.rect.y - op.rect.height,
-          width: op.rect.width,
-          height: op.rect.height,
+          y: pageHeight - op.rect.y - totalHeight,
+          width: maxLineWidth + 4,
+          height: totalHeight,
         };
 
         // Clear area with white
@@ -160,20 +167,27 @@ export async function applyPdfObjectEdits(
           opacity: 1,
         });
 
-        // Draw replacement text
-        page.drawText(op.text, {
-          x: op.rect.x,
-          y: pageHeight - op.rect.y - op.fontSize, // baseline adjustment
-          size: op.fontSize,
-          font: font,
-          color: rgb(r, g, b),
+        // Draw each line
+        lines.forEach((line, i) => {
+          const baselineY = pageHeight - op.rect.y - (i + 1) * lineHeight;
+          page.drawText(line, {
+            x: op.rect.x,
+            y: baselineY,
+            size: op.fontSize,
+            font: font,
+            color: rgb(r, g, b),
+          });
         });
 
-        // Draw underline
+        // Draw underline on last line
         if (op.underline) {
+          const lastLineY = pageHeight - op.rect.y - lines.length * lineHeight;
           page.drawLine({
-            start: { x: op.rect.x, y: pageHeight - op.rect.y - op.fontSize - 1 },
-            end: { x: op.rect.x + op.rect.width, y: pageHeight - op.rect.y - op.fontSize - 1 },
+            start: { x: op.rect.x, y: lastLineY - 1 },
+            end: {
+              x: op.rect.x + font.widthOfTextAtSize(lines[lines.length - 1], op.fontSize),
+              y: lastLineY - 1,
+            },
             thickness: 1,
             color: rgb(r, g, b),
           });
