@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { usePdfObjectEditStore } from '../../stores/pdf-object-edit.store';
-import type { PdfObjectEditOperation } from '../../lib/pdf-object-edit';
+import type { PdfObjectEditOperation, TextFormatting } from '../../lib/pdf-object-edit';
 
 interface SelectionRect {
   x: number;
@@ -27,6 +27,14 @@ interface Props {
   disabled?: boolean;
 }
 
+const DEFAULT_FORMATTING: TextFormatting = {
+  bold: false,
+  italic: false,
+  underline: false,
+  color: '#000000',
+  fontFamily: 'helvetica',
+};
+
 export function PdfObjectEditLayer({ pageNumber, zoom, editMode, tabId, disabled = false }: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [textSelection, setTextSelection] = useState<TextSelection | null>(null);
@@ -38,8 +46,20 @@ export function PdfObjectEditLayer({ pageNumber, zoom, editMode, tabId, disabled
   const [inlineText, setInlineText] = useState('');
   const [showAreaMenu, setShowAreaMenu] = useState(false);
   const [pageDims, setPageDims] = useState<{ width: number; height: number } | null>(null);
+  const [formatting, setFormatting] = useState<TextFormatting>({ ...DEFAULT_FORMATTING });
+
+  // Drag offsets for committed ops (op.id → { x, y })
+  const dragOffsets = useRef<Map<string, { x: number; y: number }>>(new Map());
+  const [, setDragTick] = useState(0);
+  const [draggingOpId, setDraggingOpId] = useState<string | null>(null);
+  const dragStartRef = useRef<{ x: number; y: number; origX: number; origY: number } | null>(null);
+
+  // Editing-state for committed ops (re-select by clicking committed element)
+  const [editingCommittedOp, setEditingCommittedOp] = useState<PdfObjectEditOperation | null>(null);
+  const [editingCommittedText, setEditingCommittedText] = useState('');
 
   const addOperation = usePdfObjectEditStore((s) => s.addOperation);
+  const removeOperation = usePdfObjectEditStore((s) => s.removeOperation);
 
   // Subscribe to pending operations for this tab — used to pick page-scoped ops
   const allOps = usePdfObjectEditStore((s) => s.pendingOperations.get(tabId));
@@ -64,11 +84,6 @@ export function PdfObjectEditLayer({ pageNumber, zoom, editMode, tabId, disabled
   const prevBlobKeys = useRef<Set<string>>(new Set());
   useEffect(() => {
     const keys = new Set(imageBlobUrls.keys());
-    for (const key of prevBlobKeys.current) {
-      if (!keys.has(key)) {
-        // URL was created by old imageBlobUrls, revoke on cleanup
-      }
-    }
     prevBlobKeys.current = keys;
     return () => {
       for (const url of imageBlobUrls.values()) URL.revokeObjectURL(url);
@@ -79,7 +94,6 @@ export function PdfObjectEditLayer({ pageNumber, zoom, editMode, tabId, disabled
   useEffect(() => {
     const container = containerRef.current?.closest('[class*="page"]') as HTMLElement | null;
     if (!container) return;
-
     const observer = new ResizeObserver((entries) => {
       for (const entry of entries) {
         setPageDims({ width: entry.contentRect.width, height: entry.contentRect.height });
@@ -89,57 +103,38 @@ export function PdfObjectEditLayer({ pageNumber, zoom, editMode, tabId, disabled
     return () => observer.disconnect();
   }, []);
 
-  // Handle click in edit mode - use elementFromPoint to hit test text spans underneath
+  // Handle click in edit mode
   const handleClick = useCallback(
     (e: React.MouseEvent) => {
       if (!editMode || disabled) return;
-
-      // Stop propagation of clicks from edit popups is handled by the popups themselves at DOM level
-
-      // Temporarily disable pointer events on overlay to allow elementFromPoint to hit underlying text layer
       const overlay = containerRef.current;
       if (!overlay) return;
-
       const wasPointerEvents = overlay.style.pointerEvents;
       overlay.style.pointerEvents = 'none';
-
       const element = document.elementFromPoint(e.clientX, e.clientY);
-
       overlay.style.pointerEvents = wasPointerEvents;
-
       if (!element) return;
-
       const span = element.closest?.('.textLayer span') as HTMLElement | null;
       if (!span) {
         setTextSelection(null);
+        setEditingCommittedOp(null);
         return;
       }
-
       e.stopPropagation();
-
-      // Get text content and approximate position
       const text = span.textContent ?? '';
       const rect = span.getBoundingClientRect();
       const containerRect = overlay.getBoundingClientRect();
       if (!containerRect) return;
-
-      // Calculate position relative to page (PDF coordinates)
       const relX = (rect.left - containerRect.left) / zoom;
       const relY = (rect.top - containerRect.top) / zoom;
       const width = rect.width / zoom;
       const height = rect.height / zoom;
-
-      // PDF.js text spans have CSS font-size already at screen scale;
-      // convert to PDF-space so overlay/textarea multiply by zoom correctly
       const fontSize = (parseFloat(getComputedStyle(span).fontSize) || 12) / zoom;
-
-      setTextSelection({
-        text,
-        rect: { x: relX, y: relY, width, height },
-        fontSize,
-      });
+      setTextSelection({ text, rect: { x: relX, y: relY, width, height }, fontSize });
       setAreaSelection(null);
+      setEditingCommittedOp(null);
       setInlineText(text);
+      setFormatting({ ...DEFAULT_FORMATTING });
     },
     [editMode, disabled, zoom]
   );
@@ -147,137 +142,206 @@ export function PdfObjectEditLayer({ pageNumber, zoom, editMode, tabId, disabled
   const handleDoubleClick = useCallback(
     (e: React.MouseEvent) => {
       if (!editMode || disabled) return;
-
       const overlay = containerRef.current;
       if (!overlay) return;
-
       const wasPointerEvents = overlay.style.pointerEvents;
       overlay.style.pointerEvents = 'none';
-
       const element = document.elementFromPoint(e.clientX, e.clientY);
-
       overlay.style.pointerEvents = wasPointerEvents;
-
       if (!element) return;
-
       const span = element.closest?.('.textLayer span') as HTMLElement | null;
       if (!span) return;
-
       e.stopPropagation();
-
       const text = span.textContent ?? '';
       const rect = span.getBoundingClientRect();
       const containerRect = overlay.getBoundingClientRect();
       if (!containerRect) return;
-
       const relX = (rect.left - containerRect.left) / zoom;
       const relY = (rect.top - containerRect.top) / zoom;
       const width = rect.width / zoom;
       const height = rect.height / zoom;
       const fontSize = (parseFloat(getComputedStyle(span).fontSize) || 12) / zoom;
-
-      setTextSelection({
-        text,
-        rect: { x: relX, y: relY, width, height },
-        fontSize,
-      });
+      setTextSelection({ text, rect: { x: relX, y: relY, width, height }, fontSize });
+      setAreaSelection(null);
+      setEditingCommittedOp(null);
       setInlineText(text);
     },
     [editMode, disabled, zoom]
   );
 
-  // Handle area selection (drag to select image/area)
+  // Area drawing
   const handleMouseDown = useCallback(
     (e: React.MouseEvent) => {
       if (!editMode || disabled) return;
-      if (e.button !== 0) return; // Left click only
-
+      if (e.button !== 0) return;
       const overlay = containerRef.current;
       if (!overlay) return;
-
-      // Check if click is on text - if so, don't start area draw
       const wasPointerEvents = overlay.style.pointerEvents;
       overlay.style.pointerEvents = 'none';
       const element = document.elementFromPoint(e.clientX, e.clientY);
       overlay.style.pointerEvents = wasPointerEvents;
-
-      if (element?.closest?.('.textLayer span')) return;
-
+      if (element?.closest?.('.textLayer span') || element?.closest?.('[data-committed-op]'))
+        return;
       setIsDrawingArea(true);
       setDrawStart({ x: e.clientX, y: e.clientY });
       setCurrentDrawRect(null);
       setTextSelection(null);
       setAreaSelection(null);
+      setEditingCommittedOp(null);
     },
     [editMode, disabled]
   );
 
   const handleMouseMove = useCallback(
     (e: React.MouseEvent) => {
-      if (!isDrawingArea || !drawStart) return;
-
-      const container = containerRef.current;
-      if (!container) return;
-
-      const rect = container.getBoundingClientRect();
-      const startX = (drawStart.x - rect.left) / zoom;
-      const startY = (drawStart.y - rect.top) / zoom;
-      const currentX = (e.clientX - rect.left) / zoom;
-      const currentY = (e.clientY - rect.top) / zoom;
-
-      const rectVal = {
-        x: Math.min(startX, currentX),
-        y: Math.min(startY, currentY),
-        width: Math.abs(currentX - startX),
-        height: Math.abs(currentY - startY),
-      };
-      setCurrentDrawRect(rectVal);
-      currentDrawRectRef.current = rectVal;
+      if (isDrawingArea && drawStart) {
+        const container = containerRef.current;
+        if (!container) return;
+        const rect = container.getBoundingClientRect();
+        const startX = (drawStart.x - rect.left) / zoom;
+        const startY = (drawStart.y - rect.top) / zoom;
+        const currentX = (e.clientX - rect.left) / zoom;
+        const currentY = (e.clientY - rect.top) / zoom;
+        const rectVal = {
+          x: Math.min(startX, currentX),
+          y: Math.min(startY, currentY),
+          width: Math.abs(currentX - startX),
+          height: Math.abs(currentY - startY),
+        };
+        setCurrentDrawRect(rectVal);
+        currentDrawRectRef.current = rectVal;
+        return;
+      }
+      if (draggingOpId && dragStartRef.current) {
+        const container = containerRef.current;
+        if (!container) return;
+        const dx = (e.clientX - dragStartRef.current.x) / zoom;
+        const dy = (e.clientY - dragStartRef.current.y) / zoom;
+        dragOffsets.current.set(draggingOpId, {
+          x: dragStartRef.current.origX + dx,
+          y: dragStartRef.current.origY + dy,
+        });
+        setDragTick((t) => t + 1); // force re-render
+      }
     },
-    [isDrawingArea, drawStart, zoom]
+    [isDrawingArea, drawStart, zoom, draggingOpId]
   );
 
   const handleMouseUp = useCallback(() => {
-    if (!isDrawingArea) return;
-
-    setIsDrawingArea(false);
-
-    if (
-      currentDrawRectRef.current &&
-      currentDrawRectRef.current.width > 5 &&
-      currentDrawRectRef.current.height > 5
-    ) {
-      setAreaSelection({ rect: currentDrawRectRef.current });
-      setShowAreaMenu(true);
+    if (isDrawingArea) {
+      setIsDrawingArea(false);
+      if (
+        currentDrawRectRef.current &&
+        currentDrawRectRef.current.width > 5 &&
+        currentDrawRectRef.current.height > 5
+      ) {
+        setAreaSelection({ rect: currentDrawRectRef.current });
+        setShowAreaMenu(true);
+      }
+      setDrawStart(null);
+      setCurrentDrawRect(null);
+      return;
     }
+    if (draggingOpId) {
+      setDraggingOpId(null);
+      dragStartRef.current = null;
+    }
+  }, [isDrawingArea, draggingOpId]);
 
-    setDrawStart(null);
-    setCurrentDrawRect(null);
-  }, [isDrawingArea]);
+  // Toggle formatting
+  const toggleBold = useCallback(() => setFormatting((f) => ({ ...f, bold: !f.bold })), []);
+  const toggleItalic = useCallback(() => setFormatting((f) => ({ ...f, italic: !f.italic })), []);
+  const toggleUnderline = useCallback(
+    () => setFormatting((f) => ({ ...f, underline: !f.underline })),
+    []
+  );
+  const setColor = useCallback((c: string) => setFormatting((f) => ({ ...f, color: c })), []);
+  const setFontFamily = useCallback(
+    (ff: 'helvetica' | 'times' | 'courier') => setFormatting((f) => ({ ...f, fontFamily: ff })),
+    []
+  );
 
-  // Commit text replacement
-  const commitTextReplace = useCallback(() => {
-    if (!textSelection || !inlineText.trim()) return;
-
-    const op: PdfObjectEditOperation = {
-      id: `text-replace-${Date.now()}`,
-      type: 'replace-text',
+  // Commit text replace with formatting
+  const commitTextReplace = useCallback(
+    (opts?: { editExistingOpId?: string }) => {
+      if (opts?.editExistingOpId) {
+        if (!editingCommittedText.trim()) {
+          removeOperation(tabId, opts.editExistingOpId);
+          setEditingCommittedOp(null);
+          return;
+        }
+        const existingOp = committedOps.find((o) => o.id === opts.editExistingOpId);
+        const op: PdfObjectEditOperation = {
+          id: `text-replace-${Date.now()}`,
+          type: 'replace-text' as const,
+          pageNumber,
+          rect:
+            existingOp?.type === 'replace-text'
+              ? existingOp.rect
+              : { x: 0, y: 0, width: 100, height: 20 },
+          text: editingCommittedText.trim(),
+          fontSize: existingOp?.type === 'replace-text' ? existingOp.fontSize : 12,
+          bold:
+            existingOp?.type === 'replace-text'
+              ? (existingOp.bold ?? formatting.bold)
+              : formatting.bold,
+          italic:
+            existingOp?.type === 'replace-text'
+              ? (existingOp.italic ?? formatting.italic)
+              : formatting.italic,
+          underline:
+            existingOp?.type === 'replace-text'
+              ? (existingOp.underline ?? formatting.underline)
+              : formatting.underline,
+          color:
+            existingOp?.type === 'replace-text'
+              ? (existingOp.color ?? formatting.color)
+              : formatting.color,
+          fontFamily:
+            existingOp?.type === 'replace-text'
+              ? (existingOp.fontFamily ?? formatting.fontFamily ?? 'helvetica')
+              : (formatting.fontFamily ?? 'helvetica'),
+        };
+        removeOperation(tabId, opts.editExistingOpId);
+        addOperation(tabId, op);
+        setEditingCommittedOp(null);
+        setEditingCommittedText('');
+        return;
+      }
+      if (!textSelection || !inlineText.trim()) return;
+      const op: PdfObjectEditOperation = {
+        id: `text-replace-${Date.now()}`,
+        type: 'replace-text' as const,
+        pageNumber,
+        rect: textSelection.rect,
+        text: inlineText.trim(),
+        fontSize: textSelection.fontSize,
+        bold: formatting.bold,
+        italic: formatting.italic,
+        underline: formatting.underline,
+        color: formatting.color,
+        fontFamily: formatting.fontFamily,
+      };
+      addOperation(tabId, op);
+      setTextSelection(null);
+      setInlineText('');
+    },
+    [
+      textSelection,
+      inlineText,
+      formatting,
       pageNumber,
-      rect: textSelection.rect,
-      text: inlineText.trim(),
-      fontSize: textSelection.fontSize,
-      color: '#000000',
-    };
-
-    addOperation(tabId, op);
-    setTextSelection(null);
-    setInlineText('');
-  }, [textSelection, inlineText, pageNumber, tabId, addOperation]);
+      tabId,
+      addOperation,
+      removeOperation,
+      editingCommittedText,
+      committedOps,
+    ]
+  );
 
   // Commit area remove
   const commitAreaRemove = useCallback(() => {
     if (!areaSelection) return;
-
     const op: PdfObjectEditOperation = {
       id: `remove-area-${Date.now()}`,
       type: 'remove-area',
@@ -285,39 +349,29 @@ export function PdfObjectEditLayer({ pageNumber, zoom, editMode, tabId, disabled
       rect: areaSelection.rect,
       fillColor: '#FFFFFF',
     };
-
     addOperation(tabId, op);
     setAreaSelection(null);
     setShowAreaMenu(false);
   }, [areaSelection, pageNumber, tabId, addOperation]);
 
-  // Handle image replace via file dialog using window.crosspdf
+  // Handle image replace
   const handleReplaceImage = useCallback(async () => {
     if (!areaSelection) return;
-
     try {
       const result = await window.crosspdf.openFileDialog({
         title: 'Select Image to Replace',
         filters: [{ name: 'Images', extensions: ['png', 'jpg', 'jpeg'] }],
         properties: ['openFile'],
       });
-
-      if (result.canceled || !result.filePaths[0]) {
-        return;
-      }
-
+      if (result.canceled || !result.filePaths[0]) return;
       const imagePath = result.filePaths[0];
       const readResult = await window.crosspdf.readFile(imagePath);
-
       if (!readResult.success || !readResult.data) {
         console.error('Failed to read image file:', readResult.error);
         return;
       }
-
-      // Determine mime type from extension
       const ext = imagePath.toLowerCase().split('.').pop();
-      const mimeType = ext === 'png' ? 'image/png' : 'image/jpeg';
-
+      const mimeType = ext === 'png' ? ('image/png' as const) : ('image/jpeg' as const);
       const op: PdfObjectEditOperation = {
         id: `replace-image-${Date.now()}`,
         type: 'replace-image',
@@ -326,7 +380,6 @@ export function PdfObjectEditLayer({ pageNumber, zoom, editMode, tabId, disabled
         imageBytes: readResult.data,
         mimeType,
       };
-
       addOperation(tabId, op);
       setAreaSelection(null);
       setShowAreaMenu(false);
@@ -335,21 +388,66 @@ export function PdfObjectEditLayer({ pageNumber, zoom, editMode, tabId, disabled
     }
   }, [areaSelection, pageNumber, tabId, addOperation]);
 
-  // Cancel current selection
+  // Cancel
   const cancelSelection = useCallback(() => {
     setTextSelection(null);
     setAreaSelection(null);
     setShowAreaMenu(false);
     setInlineText('');
+    setEditingCommittedOp(null);
   }, []);
 
+  // Re-edit committed text
+  const startEditCommittedOp = useCallback((op: PdfObjectEditOperation) => {
+    if (op.type !== 'replace-text') return;
+    setEditingCommittedOp(op);
+    setEditingCommittedText(op.text);
+    setTextSelection(null);
+    setAreaSelection(null);
+    setFormatting({
+      bold: op.bold ?? false,
+      italic: op.italic ?? false,
+      underline: op.underline ?? false,
+      color: op.color ?? '#000000',
+      fontFamily: op.fontFamily ?? 'helvetica',
+    });
+  }, []);
+
+  // Drag handlers for committed ops
+  const handleCommittedOpMouseDown = useCallback(
+    (e: React.MouseEvent, op: PdfObjectEditOperation) => {
+      if (!editMode) return;
+      e.stopPropagation();
+      e.preventDefault();
+      if (e.button !== 0) return;
+      if (e.shiftKey) {
+        // Shift+click = remove
+        removeOperation(tabId, op.id);
+        return;
+      }
+      if (e.detail === 2) {
+        // Double-click: re-edit
+        startEditCommittedOp(op);
+        return;
+      }
+      // Single click: start drag
+      const rect = 'rect' in op ? op.rect : null;
+      if (!rect) return;
+      setDraggingOpId(op.id);
+      dragStartRef.current = { x: e.clientX, y: e.clientY, origX: rect.x, origY: rect.y };
+    },
+    [editMode, tabId, removeOperation, startEditCommittedOp]
+  );
+
   if (!editMode) return null;
+
+  const fmtBtnBase = 'px-1.5 py-0.5 text-xs rounded border hover:bg-gray-100';
 
   return (
     <div
       ref={containerRef}
       className="absolute inset-0 z-20 pointer-events-auto"
-      style={{ cursor: 'crosshair' }}
+      style={{ cursor: draggingOpId ? 'grabbing' : 'crosshair' }}
       onClick={handleClick}
       onDoubleClick={handleDoubleClick}
       onMouseDown={handleMouseDown}
@@ -360,18 +458,73 @@ export function PdfObjectEditLayer({ pageNumber, zoom, editMode, tabId, disabled
       {textSelection && (
         <div
           data-edit-popup
-          className="absolute bg-white border border-gray-300 rounded shadow-lg p-2 min-w-48 z-30"
+          className="absolute bg-white border border-gray-300 rounded shadow-lg p-2 z-30"
           style={{
             left: textSelection.rect.x * zoom,
             top: textSelection.rect.y * zoom,
-            maxWidth: Math.max(textSelection.rect.width * zoom, 200),
+            minWidth: Math.max(textSelection.rect.width * zoom, 260),
           }}
           onMouseDown={(e) => e.stopPropagation()}
           onMouseUp={(e) => e.stopPropagation()}
           onClick={(e) => e.stopPropagation()}
         >
+          {/* Formatting toolbar */}
+          <div className="flex items-center gap-1 mb-2 pb-1 border-b border-gray-200">
+            <select
+              value={formatting.fontFamily ?? 'helvetica'}
+              onChange={(e) => {
+                setFontFamily(e.target.value as 'helvetica' | 'times' | 'courier');
+              }}
+              className="text-xs border rounded px-1 py-0.5"
+            >
+              <option value="helvetica">Helvetica</option>
+              <option value="times">Times</option>
+              <option value="courier">Courier</option>
+            </select>
+            <input
+              type="number"
+              value={Math.round(textSelection.fontSize)}
+              onChange={(e) => {
+                const v = Math.max(
+                  4,
+                  Math.min(144, Number(e.target.value) || textSelection.fontSize)
+                );
+                setTextSelection({ ...textSelection, fontSize: v });
+              }}
+              className="w-10 text-xs border rounded px-1 py-0.5 text-center"
+              title="Font size"
+            />
+            <button
+              className={`${fmtBtnBase} ${formatting.bold ? 'bg-blue-100 border-blue-300' : ''}`}
+              onClick={toggleBold}
+              title="Bold"
+            >
+              <b>B</b>
+            </button>
+            <button
+              className={`${fmtBtnBase} ${formatting.italic ? 'bg-blue-100 border-blue-300' : ''}`}
+              onClick={toggleItalic}
+              title="Italic"
+            >
+              <i>I</i>
+            </button>
+            <button
+              className={`${fmtBtnBase} ${formatting.underline ? 'bg-blue-100 border-blue-300' : ''}`}
+              onClick={toggleUnderline}
+              title="Underline"
+            >
+              <u>U</u>
+            </button>
+            <input
+              type="color"
+              value={formatting.color ?? '#000000'}
+              onChange={(e) => setColor(e.target.value)}
+              className="w-6 h-5 border rounded cursor-pointer"
+              title="Text color"
+            />
+          </div>
           <textarea
-            className="w-full p-1 border border-gray-300 rounded text-sm font-mono"
+            className="w-full p-1 border border-gray-300 rounded text-sm"
             value={inlineText}
             onChange={(e) => setInlineText(e.target.value)}
             onKeyDown={(e) => {
@@ -379,18 +532,27 @@ export function PdfObjectEditLayer({ pageNumber, zoom, editMode, tabId, disabled
                 e.preventDefault();
                 commitTextReplace();
               }
-              if (e.key === 'Escape') {
-                cancelSelection();
-              }
+              if (e.key === 'Escape') cancelSelection();
             }}
             autoFocus
             rows={3}
-            style={{ fontSize: textSelection.fontSize * zoom }}
+            style={{
+              fontSize: textSelection.fontSize * zoom,
+              fontWeight: formatting.bold ? 'bold' : 'normal',
+              fontStyle: formatting.italic ? 'italic' : 'normal',
+              textDecoration: formatting.underline ? 'underline' : 'none',
+              fontFamily:
+                formatting.fontFamily === 'courier'
+                  ? 'monospace'
+                  : formatting.fontFamily === 'times'
+                    ? 'serif'
+                    : 'sans-serif',
+            }}
           />
           <div className="flex gap-2 mt-2">
             <button
               className="px-2 py-1 text-xs bg-blue-500 text-white rounded hover:bg-blue-600"
-              onClick={commitTextReplace}
+              onClick={() => commitTextReplace()}
             >
               Apply
             </button>
@@ -404,25 +566,158 @@ export function PdfObjectEditLayer({ pageNumber, zoom, editMode, tabId, disabled
         </div>
       )}
 
-      {/* Committed edit operations overlay — visible immediately after Apply */}
+      {/* Committed edit operations overlay */}
       {committedOps.map((op) => {
         if (op.type === 'replace-text') {
+          const isEditing = editingCommittedOp?.id === op.id;
+          if (isEditing) {
+            return (
+              <div
+                key={op.id}
+                data-edit-popup
+                className="absolute bg-white border-2 border-blue-400 rounded shadow-lg p-2 z-30 min-w-60"
+                style={{
+                  left: op.rect.x * zoom,
+                  top: op.rect.y * zoom,
+                }}
+                onMouseDown={(e) => e.stopPropagation()}
+                onMouseUp={(e) => e.stopPropagation()}
+                onClick={(e) => e.stopPropagation()}
+              >
+                <div className="flex items-center gap-1 mb-2 pb-1 border-b border-gray-200">
+                  <select
+                    value={formatting.fontFamily ?? 'helvetica'}
+                    onChange={(e) => {
+                      setFontFamily(e.target.value as 'helvetica' | 'times' | 'courier');
+                    }}
+                    className="text-xs border rounded px-1 py-0.5"
+                  >
+                    <option value="helvetica">Helvetica</option>
+                    <option value="times">Times</option>
+                    <option value="courier">Courier</option>
+                  </select>
+                  <input
+                    type="number"
+                    value={Math.round(op.fontSize)}
+                    onChange={() => {
+                      /* fontSize handled via commit */
+                    }}
+                    className="w-10 text-xs border rounded px-1 py-0.5 text-center"
+                  />
+                  <button
+                    className={`${fmtBtnBase} ${formatting.bold ? 'bg-blue-100 border-blue-300' : ''}`}
+                    onClick={toggleBold}
+                  >
+                    <b>B</b>
+                  </button>
+                  <button
+                    className={`${fmtBtnBase} ${formatting.italic ? 'bg-blue-100 border-blue-300' : ''}`}
+                    onClick={toggleItalic}
+                  >
+                    <i>I</i>
+                  </button>
+                  <button
+                    className={`${fmtBtnBase} ${formatting.underline ? 'bg-blue-100 border-blue-300' : ''}`}
+                    onClick={toggleUnderline}
+                  >
+                    <u>U</u>
+                  </button>
+                  <input
+                    type="color"
+                    value={formatting.color ?? '#000000'}
+                    onChange={(e) => setColor(e.target.value)}
+                    className="w-6 h-5 border rounded"
+                  />
+                </div>
+                <textarea
+                  className="w-full p-1 border border-gray-300 rounded text-sm"
+                  value={editingCommittedText}
+                  onChange={(e) => setEditingCommittedText(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' && !e.shiftKey) {
+                      e.preventDefault();
+                      commitTextReplace({ editExistingOpId: op.id });
+                    }
+                    if (e.key === 'Escape') {
+                      setEditingCommittedOp(null);
+                    }
+                  }}
+                  autoFocus
+                  rows={2}
+                  style={{
+                    fontSize: op.fontSize * zoom,
+                    fontWeight: formatting.bold ? 'bold' : 'normal',
+                    fontStyle: formatting.italic ? 'italic' : 'normal',
+                    textDecoration: formatting.underline ? 'underline' : 'none',
+                    fontFamily:
+                      formatting.fontFamily === 'courier'
+                        ? 'monospace'
+                        : formatting.fontFamily === 'times'
+                          ? 'serif'
+                          : 'sans-serif',
+                  }}
+                />
+                <div className="flex gap-2 mt-2">
+                  <button
+                    className="px-2 py-1 text-xs bg-blue-500 text-white rounded hover:bg-blue-600"
+                    onClick={() => commitTextReplace({ editExistingOpId: op.id })}
+                  >
+                    Apply
+                  </button>
+                  <button
+                    className="px-2 py-1 text-xs bg-red-400 text-white rounded hover:bg-red-500"
+                    onClick={() => {
+                      removeOperation(tabId, op.id);
+                      setEditingCommittedOp(null);
+                    }}
+                  >
+                    Delete
+                  </button>
+                  <button
+                    className="px-2 py-1 text-xs bg-gray-100 rounded hover:bg-gray-200"
+                    onClick={() => setEditingCommittedOp(null)}
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            );
+          }
           return (
             <div
               key={op.id}
-              className="absolute bg-white pointer-events-none"
+              data-committed-op
+              className={`absolute bg-white border border-gray-300/50 rounded-sm cursor-move hover:border-blue-400 hover:bg-blue-50/30 ${draggingOpId === op.id ? 'border-blue-500 bg-blue-50 shadow-lg z-25' : 'pointer-events-auto'}`}
               style={{
                 left: op.rect.x * zoom,
                 top: op.rect.y * zoom,
                 width: op.rect.width * zoom,
                 height: op.rect.height * zoom,
+                zIndex: draggingOpId === op.id ? 25 : 10,
+              }}
+              onMouseDown={(e) => handleCommittedOpMouseDown(e, op)}
+              onDoubleClick={(e) => {
+                e.stopPropagation();
+                startEditCommittedOp(op);
               }}
             >
               <span
+                className="select-none"
                 style={{
                   fontSize: op.fontSize * zoom,
+                  fontWeight: op.bold ? 'bold' : 'normal',
+                  fontStyle: op.italic ? 'italic' : 'normal',
+                  textDecoration: op.underline ? 'underline' : 'none',
                   color: op.color ?? '#000',
+                  fontFamily:
+                    op.fontFamily === 'courier'
+                      ? 'monospace'
+                      : op.fontFamily === 'times'
+                        ? 'serif'
+                        : 'sans-serif',
                   lineHeight: `${op.fontSize * zoom * 1.2}px`,
+                  overflow: 'hidden',
+                  whiteSpace: 'nowrap',
                 }}
               >
                 {op.text}
@@ -434,14 +729,17 @@ export function PdfObjectEditLayer({ pageNumber, zoom, editMode, tabId, disabled
           return (
             <div
               key={op.id}
-              className="absolute pointer-events-none"
+              data-committed-op
+              className="absolute border border-red-300/50 rounded-sm cursor-move hover:border-red-400"
               style={{
                 left: op.rect.x * zoom,
                 top: op.rect.y * zoom,
                 width: op.rect.width * zoom,
                 height: op.rect.height * zoom,
                 backgroundColor: op.fillColor ?? '#fff',
+                zIndex: 10,
               }}
+              onMouseDown={(e) => handleCommittedOpMouseDown(e, op)}
             />
           );
         }
@@ -449,7 +747,8 @@ export function PdfObjectEditLayer({ pageNumber, zoom, editMode, tabId, disabled
           return (
             <div
               key={op.id}
-              className="absolute pointer-events-none"
+              data-committed-op
+              className="absolute border border-green-300/50 rounded-sm cursor-move hover:border-green-400"
               style={{
                 left: op.rect.x * zoom,
                 top: op.rect.y * zoom,
@@ -458,7 +757,9 @@ export function PdfObjectEditLayer({ pageNumber, zoom, editMode, tabId, disabled
                 backgroundImage: `url(${imageBlobUrls.get(op.id)})`,
                 backgroundSize: 'cover',
                 backgroundPosition: 'center',
+                zIndex: 10,
               }}
+              onMouseDown={(e) => handleCommittedOpMouseDown(e, op)}
             />
           );
         }
@@ -478,7 +779,7 @@ export function PdfObjectEditLayer({ pageNumber, zoom, editMode, tabId, disabled
         />
       )}
 
-      {/* Committed area selection with controls */}
+      {/* Area quick-actions */}
       {areaSelection && !showAreaMenu && (
         <>
           <div
@@ -503,9 +804,7 @@ export function PdfObjectEditLayer({ pageNumber, zoom, editMode, tabId, disabled
           >
             <button
               className="px-2 py-1 text-xs bg-blue-500 text-white rounded hover:bg-blue-600"
-              onClick={() => {
-                setShowAreaMenu(true);
-              }}
+              onClick={() => setShowAreaMenu(true)}
             >
               Remove
             </button>

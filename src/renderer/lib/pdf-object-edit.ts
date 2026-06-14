@@ -1,4 +1,12 @@
-import { PDFDocument, StandardFonts, rgb, PDFImage } from 'pdf-lib';
+import { PDFDocument, StandardFonts, rgb, PDFImage, PDFFont } from 'pdf-lib';
+
+export type TextFormatting = {
+  bold?: boolean;
+  italic?: boolean;
+  underline?: boolean;
+  color?: string;
+  fontFamily?: 'helvetica' | 'times' | 'courier';
+};
 
 export type PdfObjectEditOperation =
   | {
@@ -8,7 +16,11 @@ export type PdfObjectEditOperation =
       rect: { x: number; y: number; width: number; height: number };
       text: string;
       fontSize: number;
+      bold?: boolean;
+      italic?: boolean;
+      underline?: boolean;
       color?: string;
+      fontFamily?: 'helvetica' | 'times' | 'courier';
     }
   | {
       id: string;
@@ -58,7 +70,46 @@ export async function applyPdfObjectEdits(
   operations: PdfObjectEditOperation[]
 ): Promise<ArrayBuffer> {
   const pdfDoc = await PDFDocument.load(source, { ignoreEncryption: true });
-  const helveticaFont = await pdfDoc.embedFont(StandardFonts.Helvetica);
+
+  // Pre-embed all standard fonts
+  const fonts = {
+    helvetica: await pdfDoc.embedFont(StandardFonts.Helvetica),
+    'helvetica-bold': await pdfDoc.embedFont(StandardFonts.HelveticaBold),
+    'helvetica-oblique': await pdfDoc.embedFont(StandardFonts.HelveticaOblique),
+    'helvetica-bold-oblique': await pdfDoc.embedFont(StandardFonts.HelveticaBoldOblique),
+    times: await pdfDoc.embedFont(StandardFonts.TimesRoman),
+    'times-bold': await pdfDoc.embedFont(StandardFonts.TimesRomanBold),
+    'times-italic': await pdfDoc.embedFont(StandardFonts.TimesRomanItalic),
+    'times-bold-italic': await pdfDoc.embedFont(StandardFonts.TimesRomanBoldItalic),
+    courier: await pdfDoc.embedFont(StandardFonts.Courier),
+    'courier-bold': await pdfDoc.embedFont(StandardFonts.CourierBold),
+    'courier-oblique': await pdfDoc.embedFont(StandardFonts.CourierOblique),
+    'courier-bold-oblique': await pdfDoc.embedFont(StandardFonts.CourierBoldOblique),
+  };
+
+  function resolveFont(op: PdfObjectEditOperation & { type: 'replace-text' }): PDFFont {
+    const family = op.fontFamily ?? 'helvetica';
+    const bold = op.bold ?? false;
+    const italic = op.italic ?? false;
+
+    if (family === 'helvetica') {
+      if (bold && italic) return fonts['helvetica-bold-oblique'];
+      if (bold) return fonts['helvetica-bold'];
+      if (italic) return fonts['helvetica-oblique'];
+      return fonts.helvetica;
+    }
+    if (family === 'times') {
+      if (bold && italic) return fonts['times-bold-italic'];
+      if (bold) return fonts['times-bold'];
+      if (italic) return fonts['times-italic'];
+      return fonts.times;
+    }
+    // courier
+    if (bold && italic) return fonts['courier-bold-oblique'];
+    if (bold) return fonts['courier-bold'];
+    if (italic) return fonts['courier-oblique'];
+    return fonts.courier;
+  }
 
   // Group operations by page
   const opsByPage = new Map<number, PdfObjectEditOperation[]>();
@@ -91,7 +142,7 @@ export async function applyPdfObjectEdits(
           opacity: 1,
         });
       } else if (op.type === 'replace-text') {
-        // Draw white rectangle over original area, then draw replacement text
+        const font = resolveFont(op);
         const { r, g, b } = hexToRgb(op.color ?? '#000000');
         const pdfRect = {
           x: op.rect.x,
@@ -112,9 +163,19 @@ export async function applyPdfObjectEdits(
           x: op.rect.x,
           y: pageHeight - op.rect.y - op.fontSize, // baseline adjustment
           size: op.fontSize,
-          font: helveticaFont,
+          font: font,
           color: rgb(r, g, b),
         });
+
+        // Draw underline
+        if (op.underline) {
+          page.drawLine({
+            start: { x: op.rect.x, y: pageHeight - op.rect.y - op.fontSize - 1 },
+            end: { x: op.rect.x + op.rect.width, y: pageHeight - op.rect.y - op.fontSize - 1 },
+            thickness: 1,
+            color: rgb(r, g, b),
+          });
+        }
       } else if (op.type === 'replace-image') {
         // Draw white rectangle over area, embed and draw new image
         const pdfRect = {
