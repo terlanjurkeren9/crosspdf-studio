@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { usePdfObjectEditStore } from '../../stores/pdf-object-edit.store';
 import type { PdfObjectEditOperation } from '../../lib/pdf-object-edit';
 
@@ -40,6 +40,40 @@ export function PdfObjectEditLayer({ pageNumber, zoom, editMode, tabId, disabled
   const [pageDims, setPageDims] = useState<{ width: number; height: number } | null>(null);
 
   const addOperation = usePdfObjectEditStore((s) => s.addOperation);
+
+  // Subscribe to pending operations for this tab — used to pick page-scoped ops
+  const allOps = usePdfObjectEditStore((s) => s.pendingOperations.get(tabId));
+  const committedOps = useMemo(
+    () => (allOps ?? []).filter((op) => op.pageNumber === pageNumber),
+    [allOps, pageNumber]
+  );
+
+  // Map op ID → blob URL for replace-image operations (derived, render-safe)
+  const imageBlobUrls = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const op of committedOps) {
+      if (op.type === 'replace-image' && op.imageBytes) {
+        const blob = new Blob([new Uint8Array(op.imageBytes)], { type: op.mimeType });
+        map.set(op.id, URL.createObjectURL(blob));
+      }
+    }
+    return map;
+  }, [committedOps]);
+
+  // Revoke stale blob URLs
+  const prevBlobKeys = useRef<Set<string>>(new Set());
+  useEffect(() => {
+    const keys = new Set(imageBlobUrls.keys());
+    for (const key of prevBlobKeys.current) {
+      if (!keys.has(key)) {
+        // URL was created by old imageBlobUrls, revoke on cleanup
+      }
+    }
+    prevBlobKeys.current = keys;
+    return () => {
+      for (const url of imageBlobUrls.values()) URL.revokeObjectURL(url);
+    };
+  }, [imageBlobUrls]);
 
   // Track page dimensions
   useEffect(() => {
@@ -368,6 +402,67 @@ export function PdfObjectEditLayer({ pageNumber, zoom, editMode, tabId, disabled
           </div>
         </div>
       )}
+
+      {/* Committed edit operations overlay — visible immediately after Apply */}
+      {committedOps.map((op) => {
+        if (op.type === 'replace-text') {
+          return (
+            <div
+              key={op.id}
+              className="absolute bg-white pointer-events-none"
+              style={{
+                left: op.rect.x * zoom,
+                top: op.rect.y * zoom,
+                width: op.rect.width * zoom,
+                height: op.rect.height * zoom,
+              }}
+            >
+              <span
+                style={{
+                  fontSize: op.fontSize * zoom,
+                  color: op.color ?? '#000',
+                  lineHeight: `${op.fontSize * zoom * 1.2}px`,
+                }}
+              >
+                {op.text}
+              </span>
+            </div>
+          );
+        }
+        if (op.type === 'remove-area') {
+          return (
+            <div
+              key={op.id}
+              className="absolute pointer-events-none"
+              style={{
+                left: op.rect.x * zoom,
+                top: op.rect.y * zoom,
+                width: op.rect.width * zoom,
+                height: op.rect.height * zoom,
+                backgroundColor: op.fillColor ?? '#fff',
+              }}
+            />
+          );
+        }
+        if (op.type === 'replace-image') {
+          return (
+            <div
+              key={op.id}
+              className="absolute pointer-events-none"
+              style={{
+                left: op.rect.x * zoom,
+                top: op.rect.y * zoom,
+                width: op.rect.width * zoom,
+                height: op.rect.height * zoom,
+                backgroundImage: `url(${imageBlobUrls.get(op.id)})`,
+                backgroundSize: 'cover',
+                backgroundPosition: 'center',
+              }}
+            />
+          );
+        }
+        return null;
+      })}
 
       {/* Area selection rectangle while drawing */}
       {currentDrawRect && (
