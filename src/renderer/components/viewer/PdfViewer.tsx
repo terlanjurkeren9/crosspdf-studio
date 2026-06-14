@@ -1484,10 +1484,30 @@ export function PdfViewer({ tab, onOpenAnother, onPdfDocumentLoaded, viewerRef }
         onImagesToPdf={handleImagesToPdf}
         onSignature={handleSignature}
         editMode={editMode}
-        onEditModeToggle={() => {
-          setEditMode(!editMode);
-          // Clear active drawing tool when entering edit mode so click hit-testing works
-          if (!editMode) {
+        onEditModeToggle={async () => {
+          if (editMode) {
+            // Exiting edit mode — auto-apply pending edits & reload so changes persist
+            setEditMode(false);
+            setActiveTool('select');
+            const pendingOps = usePdfObjectEditStore.getState().getOperations(tab.id);
+            if (pendingOps.length > 0 && tab.filePath) {
+              try {
+                const data = await readCurrentPdfBytes();
+                if (data) {
+                  const edited = await applyPdfObjectEdits(data, pendingOps);
+                  await window.crosspdf.writeFile(tab.filePath, edited);
+                  usePdfObjectEditStore.getState().clearOperations(tab.id);
+                  window.dispatchEvent(
+                    new CustomEvent('crosspdf:open-file', { detail: { filePath: tab.filePath } })
+                  );
+                }
+              } catch {
+                // Non-critical — user can still Save later
+              }
+            }
+          } else {
+            // Entering edit mode
+            setEditMode(!editMode);
             setActiveTool('select');
           }
         }}
