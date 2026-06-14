@@ -543,12 +543,20 @@ export function ViewerToolbar({
     { id: 'annotate', label: 'Annotate', icon: Highlighter, accent: 'indigo' },
     { id: 'pages', label: 'Pages', icon: FilePlus2, accent: 'green' },
     { id: 'tools', label: 'Tools', icon: ScanText, accent: 'amber' },
+    { id: 'help', label: 'Help', accent: 'neutral' },
   ];
 
   return (
     <div className="flex shrink-0 flex-col">
       {/* === RIBBON TABS === */}
-      <RibbonTabs tabs={ribbonTabs} activeTab={ribbonTab} onTabChange={setRibbonTab} />
+      <RibbonTabs tabs={ribbonTabs} activeTab={ribbonTab} onTabChange={setRibbonTab}>
+        {/* Command Palette button — always visible in top bar, right of tab labels */}
+        {onCommandPalette && (
+          <IconButton label={t('viewer.commandPalette')} onClick={onCommandPalette}>
+            <Command className="h-4 w-4" />
+          </IconButton>
+        )}
+      </RibbonTabs>
 
       {/* === TOOLBAR === */}
       <div className="flex h-12 shrink-0 select-none items-center gap-1 overflow-x-auto border-b border-surface-200 bg-white px-2 shadow-[0_1px_3px_rgba(0,0,0,0.04)] dark:border-surface-700 dark:bg-surface-900 dark:shadow-[0_1px_3px_rgba(0,0,0,0.2)]">
@@ -595,15 +603,6 @@ export function ViewerToolbar({
             {/* View */}
             <ToolbarGroup label={t('viewer.view')}>
               <SegmentedControl
-                value={viewMode}
-                disabled={disabled}
-                onChange={onViewMode}
-                options={[
-                  { value: 'single', label: t('viewer.single') },
-                  { value: 'continuous', label: t('viewer.continuous') },
-                ]}
-              />
-              <SegmentedControl
                 value={fitMode}
                 disabled={disabled}
                 onChange={onFitMode}
@@ -628,6 +627,14 @@ export function ViewerToolbar({
                 </IconButton>
               )}
               <IconButton
+                label={t('viewer.select')}
+                onClick={() => onToolChange('select')}
+                active={activeTool === 'select'}
+                disabled={disabled}
+              >
+                <MousePointer2 className="h-4 w-4" />
+              </IconButton>
+              <IconButton
                 label={t('viewer.hand')}
                 onClick={() => onToolChange('hand')}
                 active={activeTool === 'hand'}
@@ -635,11 +642,6 @@ export function ViewerToolbar({
               >
                 <Hand className="h-4 w-4" />
               </IconButton>
-              {onCommandPalette && (
-                <IconButton label={t('viewer.commandPalette')} onClick={onCommandPalette}>
-                  <Command className="h-4 w-4" />
-                </IconButton>
-              )}
             </ToolbarGroup>
 
             {/* Preferences */}
@@ -922,7 +924,26 @@ export function ViewerToolbar({
         {/* Spacer */}
         <div className="flex-1" />
 
-        {/* ── Always visible: Navigation + Zoom ── */}
+        {/* ── Always visible: View mode + Fit mode controls (near navigation) ── */}
+        <ToolbarSeparator />
+        <ToolbarGroup label={t('viewer.view')} className="border-r-0 pr-0">
+          <SegmentedControl
+            value={viewMode}
+            disabled={disabled}
+            onChange={onViewMode}
+            options={[
+              { value: 'single', label: t('viewer.single') },
+              { value: 'continuous', label: t('viewer.continuous') },
+            ]}
+          />
+          <SegmentedControl
+            value={fitMode}
+            disabled={disabled}
+            onChange={onFitMode}
+            options={fitOptions}
+          />
+        </ToolbarGroup>
+
         <ToolbarSeparator />
         <ToolbarGroup label={t('viewer.navigation')} className="border-r-0 pr-0">
           <IconButton label={t('viewer.firstPage')} onClick={onFirstPage} disabled={canPrev}>
