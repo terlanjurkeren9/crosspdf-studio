@@ -816,6 +816,10 @@ export function PdfViewer({ tab, onOpenAnother, onPdfDocumentLoaded, viewerRef }
     emitE2EFileAction('save', tab.filePath);
     // Clear pending object edit operations after successful save
     usePdfObjectEditStore.getState().clearOperations(tab.id);
+    // Reopen the file to reflect object edits in the viewer
+    window.dispatchEvent(
+      new CustomEvent('crosspdf:open-file', { detail: { filePath: tab.filePath } })
+    );
     window.crosspdf.upsertRecentDocument(tab.filePath, tab.fileName).catch(() => {
       // Ignore — recent documents update is best-effort.
     });

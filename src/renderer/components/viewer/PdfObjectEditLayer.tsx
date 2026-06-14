@@ -34,6 +34,7 @@ export function PdfObjectEditLayer({ pageNumber, zoom, editMode, tabId, disabled
   const [isDrawingArea, setIsDrawingArea] = useState(false);
   const [drawStart, setDrawStart] = useState<{ x: number; y: number } | null>(null);
   const [currentDrawRect, setCurrentDrawRect] = useState<SelectionRect | null>(null);
+  const currentDrawRectRef = useRef<SelectionRect | null>(null);
   const [inlineText, setInlineText] = useState('');
   const [showAreaMenu, setShowAreaMenu] = useState(false);
   const [pageDims, setPageDims] = useState<{ width: number; height: number } | null>(null);
@@ -71,6 +72,12 @@ export function PdfObjectEditLayer({ pageNumber, zoom, editMode, tabId, disabled
       overlay.style.pointerEvents = wasPointerEvents;
 
       if (!element) return;
+
+      // Ignore clicks on the edit popups themselves (Apply/Cancel buttons)
+      if (element.closest?.('button') || element.closest?.('[data-edit-popup]')) {
+        overlay.style.pointerEvents = wasPointerEvents;
+        return;
+      }
 
       const span = element.closest?.('.textLayer span') as HTMLElement | null;
       if (!span) {
@@ -121,6 +128,12 @@ export function PdfObjectEditLayer({ pageNumber, zoom, editMode, tabId, disabled
       overlay.style.pointerEvents = wasPointerEvents;
 
       if (!element) return;
+
+      // Ignore clicks on the edit popups themselves (Apply/Cancel buttons)
+      if (element.closest?.('button') || element.closest?.('[data-edit-popup]')) {
+        overlay.style.pointerEvents = wasPointerEvents;
+        return;
+      }
 
       const span = element.closest?.('.textLayer span') as HTMLElement | null;
       if (!span) return;
@@ -187,12 +200,14 @@ export function PdfObjectEditLayer({ pageNumber, zoom, editMode, tabId, disabled
       const currentX = (e.clientX - rect.left) / zoom;
       const currentY = (e.clientY - rect.top) / zoom;
 
-      setCurrentDrawRect({
+      const rectVal = {
         x: Math.min(startX, currentX),
         y: Math.min(startY, currentY),
         width: Math.abs(currentX - startX),
         height: Math.abs(currentY - startY),
-      });
+      };
+      setCurrentDrawRect(rectVal);
+      currentDrawRectRef.current = rectVal;
     },
     [isDrawingArea, drawStart, zoom]
   );
@@ -202,14 +217,18 @@ export function PdfObjectEditLayer({ pageNumber, zoom, editMode, tabId, disabled
 
     setIsDrawingArea(false);
 
-    if (currentDrawRect && currentDrawRect.width > 5 && currentDrawRect.height > 5) {
-      setAreaSelection({ rect: currentDrawRect });
+    if (
+      currentDrawRectRef.current &&
+      currentDrawRectRef.current.width > 5 &&
+      currentDrawRectRef.current.height > 5
+    ) {
+      setAreaSelection({ rect: currentDrawRectRef.current });
       setShowAreaMenu(true);
     }
 
     setDrawStart(null);
     setCurrentDrawRect(null);
-  }, [isDrawingArea, currentDrawRect]);
+  }, [isDrawingArea]);
 
   // Commit text replacement
   const commitTextReplace = useCallback(() => {
@@ -315,6 +334,7 @@ export function PdfObjectEditLayer({ pageNumber, zoom, editMode, tabId, disabled
       {/* Text selection inline editor */}
       {textSelection && (
         <div
+          data-edit-popup
           className="absolute bg-white border border-gray-300 rounded shadow-lg p-2 min-w-48 z-30"
           style={{
             left: textSelection.rect.x * zoom,
@@ -382,6 +402,7 @@ export function PdfObjectEditLayer({ pageNumber, zoom, editMode, tabId, disabled
             }}
           />
           <div
+            data-edit-popup
             className="absolute bg-white border border-gray-300 rounded shadow-lg p-2 flex gap-2 z-30"
             style={{
               left: Math.min(areaSelection.rect.x * zoom, (pageDims?.width ?? 300) - 180),
@@ -415,6 +436,7 @@ export function PdfObjectEditLayer({ pageNumber, zoom, editMode, tabId, disabled
       {/* Area context menu */}
       {showAreaMenu && areaSelection && (
         <div
+          data-edit-popup
           className="absolute bg-white border border-gray-300 rounded shadow-lg p-3 z-30 min-w-40"
           style={{
             left: Math.min(areaSelection.rect.x * zoom, (pageDims?.width ?? 300) - 160),
