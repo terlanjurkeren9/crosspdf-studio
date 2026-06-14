@@ -49,9 +49,12 @@ export function PdfObjectEditLayer({ pageNumber, zoom, editMode, tabId, disabled
   const [formatting, setFormatting] = useState<TextFormatting>({ ...DEFAULT_FORMATTING });
 
   // Drag offsets for committed ops (op.id → { x, y })
-  const [dragOffsets, setDragOffsets] = useState<Map<string, { x: number; y: number }>>(new Map());
+  const dragOffsets = useRef<Map<string, { x: number; y: number }>>(new Map());
   const [draggingOpId, setDraggingOpId] = useState<string | null>(null);
   const dragStartRef = useRef<{ x: number; y: number; origX: number; origY: number } | null>(null);
+
+  // Ref map for direct DOM manipulation during drag — avoids React re-render on every mousemove
+  const committedOpEls = useRef<Map<string, HTMLElement>>(new Map());
 
   // Editing-state for committed ops (re-select by clicking committed element)
   const [editingCommittedOp, setEditingCommittedOp] = useState<PdfObjectEditOperation | null>(null);
@@ -216,14 +219,15 @@ export function PdfObjectEditLayer({ pageNumber, zoom, editMode, tabId, disabled
         if (!container) return;
         const dx = (e.clientX - dragStartRef.current.x) / zoom;
         const dy = (e.clientY - dragStartRef.current.y) / zoom;
-        setDragOffsets((prev) => {
-          const next = new Map(prev);
-          next.set(draggingOpId, {
-            x: dragStartRef.current!.origX + dx,
-            y: dragStartRef.current!.origY + dy,
-          });
-          return next;
-        });
+        const newX = dragStartRef.current.origX + dx;
+        const newY = dragStartRef.current.origY + dy;
+        dragOffsets.current.set(draggingOpId, { x: newX, y: newY });
+        // Direct DOM manipulation — no React re-render during drag
+        const el = committedOpEls.current.get(draggingOpId);
+        if (el) {
+          el.style.left = `${newX * zoom}px`;
+          el.style.top = `${newY * zoom}px`;
+        }
       }
     },
     [isDrawingArea, drawStart, zoom, draggingOpId]
@@ -245,10 +249,21 @@ export function PdfObjectEditLayer({ pageNumber, zoom, editMode, tabId, disabled
       return;
     }
     if (draggingOpId) {
+      // Persist final position back to the store op
+      const offset = dragOffsets.current.get(draggingOpId);
+      if (offset) {
+        const committed = committedOps.find((o) => o.id === draggingOpId);
+        if (committed) {
+          const updated = { ...committed, rect: { ...committed.rect, x: offset.x, y: offset.y } };
+          removeOperation(tabId, draggingOpId);
+          addOperation(tabId, updated);
+        }
+      }
+      dragOffsets.current.delete(draggingOpId);
       setDraggingOpId(null);
       dragStartRef.current = null;
     }
-  }, [isDrawingArea, draggingOpId]);
+  }, [isDrawingArea, draggingOpId, committedOps, addOperation, removeOperation, tabId]);
 
   // Toggle formatting
   const toggleBold = useCallback(() => setFormatting((f) => ({ ...f, bold: !f.bold })), []);
@@ -686,17 +701,18 @@ export function PdfObjectEditLayer({ pageNumber, zoom, editMode, tabId, disabled
             );
           }
           const isDragging = draggingOpId === op.id;
-          const offset = isDragging ? dragOffsets.get(op.id) : null;
-          const displayX = offset ? offset.x : op.rect.x;
-          const displayY = offset ? offset.y : op.rect.y;
           return (
             <div
               key={op.id}
               data-committed-op
+              ref={(el) => {
+                if (el) committedOpEls.current.set(op.id, el);
+                else committedOpEls.current.delete(op.id);
+              }}
               className={`absolute bg-white border border-gray-300/50 rounded-sm cursor-move hover:border-blue-400 hover:bg-blue-50/30 ${isDragging ? 'border-blue-500 bg-blue-50 shadow-lg z-25' : 'pointer-events-auto'}`}
               style={{
-                left: displayX * zoom,
-                top: displayY * zoom,
+                left: op.rect.x * zoom,
+                top: op.rect.y * zoom,
                 width: op.rect.width * zoom,
                 height: op.rect.height * zoom,
                 zIndex: isDragging ? 25 : 21,
