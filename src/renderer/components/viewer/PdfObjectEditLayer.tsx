@@ -60,9 +60,7 @@ export function PdfObjectEditLayer({ pageNumber, zoom, editMode, tabId, disabled
     (e: React.MouseEvent) => {
       if (!editMode || disabled) return;
 
-      // Ignore clicks that originate from edit popups (Apply/Cancel buttons etc)
-      const target = e.target as HTMLElement;
-      if (target.closest?.('[data-edit-popup]')) return;
+      // Stop propagation of clicks from edit popups is handled by the popups themselves at DOM level
 
       // Temporarily disable pointer events on overlay to allow elementFromPoint to hit underlying text layer
       const overlay = containerRef.current;
@@ -126,12 +124,6 @@ export function PdfObjectEditLayer({ pageNumber, zoom, editMode, tabId, disabled
       overlay.style.pointerEvents = wasPointerEvents;
 
       if (!element) return;
-
-      // Ignore clicks on the edit popups themselves (Apply/Cancel buttons)
-      if (element.closest?.('button') || element.closest?.('[data-edit-popup]')) {
-        overlay.style.pointerEvents = wasPointerEvents;
-        return;
-      }
 
       const span = element.closest?.('.textLayer span') as HTMLElement | null;
       if (!span) return;
@@ -339,6 +331,9 @@ export function PdfObjectEditLayer({ pageNumber, zoom, editMode, tabId, disabled
             top: textSelection.rect.y * zoom,
             maxWidth: Math.max(textSelection.rect.width * zoom, 200),
           }}
+          onMouseDown={(e) => e.stopPropagation()}
+          onMouseUp={(e) => e.stopPropagation()}
+          onClick={(e) => e.stopPropagation()}
         >
           <textarea
             className="w-full p-1 border border-gray-300 rounded text-sm font-mono"
@@ -406,6 +401,9 @@ export function PdfObjectEditLayer({ pageNumber, zoom, editMode, tabId, disabled
               left: Math.min(areaSelection.rect.x * zoom, (pageDims?.width ?? 300) - 180),
               top: (areaSelection.rect.y + areaSelection.rect.height) * zoom + 4,
             }}
+            onMouseDown={(e) => e.stopPropagation()}
+            onMouseUp={(e) => e.stopPropagation()}
+            onClick={(e) => e.stopPropagation()}
           >
             <button
               className="px-2 py-1 text-xs bg-blue-500 text-white rounded hover:bg-blue-600"
@@ -440,6 +438,9 @@ export function PdfObjectEditLayer({ pageNumber, zoom, editMode, tabId, disabled
             left: Math.min(areaSelection.rect.x * zoom, (pageDims?.width ?? 300) - 160),
             top: (areaSelection.rect.y + areaSelection.rect.height) * zoom + 4,
           }}
+          onMouseDown={(e) => e.stopPropagation()}
+          onMouseUp={(e) => e.stopPropagation()}
+          onClick={(e) => e.stopPropagation()}
         >
           <p className="text-xs text-gray-600 mb-2">Edit selected area:</p>
           <div className="flex flex-col gap-1">
