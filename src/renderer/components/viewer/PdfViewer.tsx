@@ -1487,7 +1487,6 @@ export function PdfViewer({ tab, onOpenAnother, onPdfDocumentLoaded, viewerRef }
         onEditModeToggle={async () => {
           if (editMode) {
             // Exiting edit mode — auto-apply pending edits & reload so changes persist
-            setEditMode(false);
             setActiveTool('select');
             const pendingOps = usePdfObjectEditStore.getState().getOperations(tab.id);
             if (pendingOps.length > 0 && tab.filePath) {
@@ -1505,6 +1504,8 @@ export function PdfViewer({ tab, onOpenAnother, onPdfDocumentLoaded, viewerRef }
                 // Non-critical — user can still Save later
               }
             }
+            // Exit edit mode after apply completes, so overlay stays until reload
+            setEditMode(false);
           } else {
             // Entering edit mode
             setEditMode(!editMode);
