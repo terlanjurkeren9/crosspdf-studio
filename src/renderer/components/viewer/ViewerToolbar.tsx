@@ -353,105 +353,6 @@ export function ViewerToolbar({
     },
   ];
 
-  /* Build convert/secure palette */
-  const toolsItems: ToolPaletteGroup[] = [
-    {
-      label: t('viewer.convertSecure'),
-      items: [
-        ...(onOcr
-          ? [
-              {
-                id: 'ocr',
-                label: t('viewer.ocr'),
-                icon: ScanText as ComponentType<{ className?: string }>,
-              },
-            ]
-          : []),
-        ...(onExportText
-          ? [
-              {
-                id: 'export-text',
-                label: t('viewer.exportText'),
-                icon: FileText as ComponentType<{ className?: string }>,
-              },
-            ]
-          : []),
-        ...(onForms
-          ? [
-              {
-                id: 'forms',
-                label: t('viewer.forms'),
-                icon: FileOutput as ComponentType<{ className?: string }>,
-              },
-            ]
-          : []),
-        ...(onFlatten
-          ? [
-              {
-                id: 'flatten',
-                label: t('viewer.flatten'),
-                icon: Layers as ComponentType<{ className?: string }>,
-              },
-            ]
-          : []),
-        ...(onCreateField
-          ? [
-              {
-                id: 'create-field',
-                label: t('viewer.createField'),
-                icon: TextCursorInput as ComponentType<{ className?: string }>,
-              },
-            ]
-          : []),
-        ...(onPassword
-          ? [
-              {
-                id: 'password',
-                label: t('viewer.passwordProtection'),
-                icon: LockKeyhole as ComponentType<{ className?: string }>,
-              },
-            ]
-          : []),
-        ...(onPassword
-          ? [
-              {
-                id: 'password',
-                label: t('viewer.passwordProtection'),
-                icon: LockKeyhole as ComponentType<{ className?: string }>,
-              },
-            ]
-          : []),
-        ...(onPdfToImages
-          ? [
-              {
-                id: 'pdf-to-images',
-                label: t('viewer.pdfToImages'),
-                icon: FileImage as ComponentType<{ className?: string }>,
-              },
-            ]
-          : []),
-        ...(onImagesToPdf
-          ? [
-              {
-                id: 'images-to-pdf',
-                label: t('viewer.imagesToPdf'),
-                icon: Images as ComponentType<{ className?: string }>,
-              },
-            ]
-          : []),
-        ...(onSignature
-          ? [
-              {
-                id: 'signature',
-                label: t('viewer.digitalSignature'),
-                icon: PenTool as ComponentType<{ className?: string }>,
-              },
-            ]
-          : []),
-      ].filter((x) => x) as ToolPaletteItem[],
-    },
-  ];
-
   const handlePageOpSelect = useCallback(
     (id: string) => {
       switch (id) {
@@ -481,78 +382,23 @@ export function ViewerToolbar({
     [onDeletePage, onRotateCCW, onRotateCW, onMerge, onSplit, onReorder, onExtract]
   );
 
-  const handleToolSelect = useCallback(
-    (id: string) => {
-      switch (id) {
-        case 'ocr':
-          onOcr?.();
-          break;
-        case 'export-text':
-          onExportText?.();
-          break;
-        case 'forms':
-          onForms?.();
-          break;
-        case 'flatten':
-          onFlatten?.();
-          break;
-        case 'create-field':
-          onCreateField?.();
-          break;
-        case 'password':
-          onPassword?.();
-          break;
-        case 'pdf-to-images':
-          onPdfToImages?.();
-          break;
-        case 'images-to-pdf':
-          onImagesToPdf?.();
-          break;
-        case 'signature':
-          onSignature?.();
-          break;
-        case 'compare':
-          onCompare?.();
-          break;
-        case 'batch':
-          onBatch?.();
-          break;
-        case 'validate':
-          onValidate?.();
-          break;
-      }
-    },
-    [
-      onOcr,
-      onExportText,
-      onForms,
-      onFlatten,
-      onCreateField,
-      onPassword,
-      onPdfToImages,
-      onImagesToPdf,
-      onSignature,
-      onCompare,
-      onBatch,
-      onValidate,
-    ]
-  );
-
   const ribbonTabs: RibbonTab[] = [
     { id: 'home', label: 'Home', icon: FilePlus2, accent: 'blue' },
     { id: 'annotate', label: 'Annotate', icon: Highlighter, accent: 'indigo' },
     { id: 'pages', label: 'Pages', icon: FilePlus2, accent: 'green' },
     { id: 'tools', label: 'Tools', icon: ScanText, accent: 'amber' },
-    { id: 'help', label: 'Help', accent: 'neutral' },
   ];
 
   return (
     <div className="flex shrink-0 flex-col">
       {/* === RIBBON TABS === */}
       <RibbonTabs tabs={ribbonTabs} activeTab={ribbonTab} onTabChange={setRibbonTab}>
-        {/* Command Palette button — always visible in top bar, right of tab labels */}
         {onCommandPalette && (
-          <IconButton label={t('viewer.commandPalette')} onClick={onCommandPalette}>
+          <IconButton
+            label={t('viewer.commandPalette')}
+            onClick={onCommandPalette}
+            className="ml-auto"
+          >
             <Command className="h-4 w-4" />
           </IconButton>
         )}
@@ -602,12 +448,6 @@ export function ViewerToolbar({
 
             {/* View */}
             <ToolbarGroup label={t('viewer.view')}>
-              <SegmentedControl
-                value={fitMode}
-                disabled={disabled}
-                onChange={onFitMode}
-                options={fitOptions}
-              />
               {onRotateViewCCW && (
                 <IconButton
                   label={t('viewer.rotateViewCCW')}
@@ -626,6 +466,12 @@ export function ViewerToolbar({
                   <RotateCw className="h-4 w-4" />
                 </IconButton>
               )}
+              <SegmentedControl
+                value={fitMode}
+                disabled={disabled}
+                onChange={onFitMode}
+                options={fitOptions}
+              />
               <IconButton
                 label={t('viewer.select')}
                 onClick={() => onToolChange('select')}
@@ -883,15 +729,6 @@ export function ViewerToolbar({
                   <ShieldCheck className="h-4 w-4" />
                 </IconButton>
               )}
-              <ToolPaletteDropdown
-                triggerIcon={ScanText}
-                triggerLabel={t('viewer.tools')}
-                groups={toolsItems}
-                onSelect={handleToolSelect}
-                disabled={disabled}
-                active={editMode}
-                accent="amber"
-              />
               <IconButton
                 label={t('viewer.editPdfObjects')}
                 onClick={onEditModeToggle}
@@ -924,7 +761,7 @@ export function ViewerToolbar({
         {/* Spacer */}
         <div className="flex-1" />
 
-        {/* ── Always visible: View mode + Fit mode controls (near navigation) ── */}
+        {/* ── Always visible: View mode control (near navigation) ── */}
         <ToolbarSeparator />
         <ToolbarGroup label={t('viewer.view')} className="border-r-0 pr-0">
           <SegmentedControl
@@ -935,12 +772,6 @@ export function ViewerToolbar({
               { value: 'single', label: t('viewer.single') },
               { value: 'continuous', label: t('viewer.continuous') },
             ]}
-          />
-          <SegmentedControl
-            value={fitMode}
-            disabled={disabled}
-            onChange={onFitMode}
-            options={fitOptions}
           />
         </ToolbarGroup>
 
