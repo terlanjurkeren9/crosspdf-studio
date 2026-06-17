@@ -1534,7 +1534,7 @@ export function PdfViewer({
       />
 
       {/* Content area */}
-      <div ref={containerRef} className="flex-1 overflow-hidden relative">
+      <div ref={containerRef} className="flex-1 overflow-auto relative">
         {/* Floating action buttons — outside toolbar, overlaid on viewer */}
         {docState.status === 'ready' && (
           <div className="absolute bottom-4 right-4 z-50 flex flex-col gap-2">
@@ -1602,7 +1602,7 @@ export function PdfViewer({
         )}
 
         {docState.status === 'ready' && viewMode === 'single' && (
-          <div className="pdf-workspace flex h-full justify-center overflow-auto">
+          <div className="pdf-workspace h-full overflow-auto">
             {renderError && (
               <div className="flex flex-col items-center justify-center gap-4 p-8 text-center self-center">
                 <div className="text-amber-500 dark:text-amber-400">
@@ -1619,7 +1619,7 @@ export function PdfViewer({
             )}
 
             {!renderError && (
-              <div className="p-5">
+              <div className="flex min-w-full w-max justify-center p-5">
                 <div
                   className="relative"
                   ref={textLayerContainerRef}

@@ -202,11 +202,8 @@ export function PageList({
   }, []);
 
   return (
-    <div
-      ref={containerRef}
-      className="pdf-workspace h-full overflow-auto flex flex-col items-center"
-    >
-      <div className="flex w-full flex-col items-center gap-5 py-5">
+    <div ref={containerRef} className="pdf-workspace h-full overflow-auto">
+      <div className="flex min-w-full w-max flex-col items-center gap-5 py-5">
         {Array.from({ length: numPages }, (_, i) => {
           const pageNumber = i + 1;
           const dims = pageDimsMap.get(pageNumber);
