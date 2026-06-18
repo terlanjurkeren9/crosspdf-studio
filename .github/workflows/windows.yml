@@ -31,7 +31,7 @@ jobs:
 
       - run: pnpm build
 
-      - run: pnpm package:win
+      - run: pnpm package:win -- --publish never
 
       - name: Upload workflow artifacts
         if: ${{ github.event_name == 'workflow_dispatch' }}
