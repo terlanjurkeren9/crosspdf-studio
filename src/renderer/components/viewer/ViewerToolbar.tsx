@@ -1,5 +1,6 @@
 import {
   ArrowRight,
+  ArrowUpDown,
   ChevronLeft,
   ChevronRight,
   ChevronsLeft,
@@ -36,8 +37,10 @@ import {
   StickyNote,
   Strikethrough,
   TextCursorInput,
+  Trash2,
   Type,
   Underline,
+  Wrench,
   X,
   ZoomIn,
   ZoomOut,
@@ -48,6 +51,7 @@ import {
   type KeyboardEvent,
   type FocusEvent,
   useCallback,
+  useMemo,
   useState,
 } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -179,14 +183,6 @@ const ADVANCED_TOOLS: ToolDef[] = [
   { tool: 'form-field', labelKey: 'viewer.createFormField', icon: TextCursorInput },
 ];
 
-function toolDefsToItems(tools: ToolDef[], t: (key: string) => string): ToolPaletteItem[] {
-  return tools.map((td) => ({
-    id: td.tool,
-    label: t(td.labelKey),
-    icon: td.icon,
-  }));
-}
-
 /** Separator between toolbar sections */
 function ToolbarSeparator() {
   return (
@@ -273,13 +269,25 @@ export function ViewerToolbar({
     { value: 'fit-page', label: t('viewer.pageFit'), title: fitModeLabel('fit-page') },
   ];
 
-  /* Build annotation palette groups */
-  const annotationGroups: ToolPaletteGroup[] = [
-    { label: t('viewer.groupTextMarkup'), items: toolDefsToItems(TEXT_MARKUP_TOOLS, t) },
-    { label: t('viewer.groupShapes'), items: toolDefsToItems(SHAPE_TOOLS, t) },
-    { label: t('viewer.groupDrawing'), items: toolDefsToItems(DRAWING_TOOLS, t) },
-    { label: t('viewer.groupAdvanced'), items: toolDefsToItems(ADVANCED_TOOLS, t) },
-  ];
+  const shapeGroupItems: ToolPaletteGroup[] = useMemo(
+    () => [
+      {
+        label: t('viewer.shapes'),
+        items: SHAPE_TOOLS.map((td) => ({ id: td.tool, label: t(td.labelKey), icon: td.icon })),
+      },
+    ],
+    [t]
+  );
+
+  const moreGroupItems: ToolPaletteGroup[] = useMemo(
+    () => [
+      {
+        label: t('viewer.more'),
+        items: ADVANCED_TOOLS.map((td) => ({ id: td.tool, label: t(td.labelKey), icon: td.icon })),
+      },
+    ],
+    [t]
+  );
 
   /* Build page operations palette */
   const pageOpsItems: ToolPaletteGroup[] = [
@@ -405,7 +413,7 @@ export function ViewerToolbar({
       </RibbonTabs>
 
       {/* === TOOLBAR === */}
-      <div className="flex h-12 shrink-0 select-none items-center gap-1 overflow-x-auto border-b border-surface-200 bg-white px-2 shadow-[0_1px_3px_rgba(0,0,0,0.04)] dark:border-surface-700 dark:bg-surface-900 dark:shadow-[0_1px_3px_rgba(0,0,0,0.2)]">
+      <div className="flex min-h-16 shrink-0 select-none items-center gap-1 overflow-x-auto border-b border-surface-200 bg-white px-2 shadow-[0_1px_3px_rgba(0,0,0,0.04)] dark:border-surface-700 dark:bg-surface-900 dark:shadow-[0_1px_3px_rgba(0,0,0,0.2)]">
         {/* ── HOME tab content ── */}
         {ribbonTab === 'home' && (
           <>
@@ -513,6 +521,7 @@ export function ViewerToolbar({
                 onClick={() => onToolChange('select')}
                 active={activeTool === 'select'}
                 disabled={disabled}
+                variant="ribbon"
               >
                 <MousePointer2 className="h-4 w-4" />
               </IconButton>
@@ -521,35 +530,64 @@ export function ViewerToolbar({
                 onClick={() => onToolChange('hand')}
                 active={activeTool === 'hand'}
                 disabled={disabled}
+                variant="ribbon"
               >
                 <Hand className="h-4 w-4" />
               </IconButton>
-              {[...TEXT_MARKUP_TOOLS, ...SHAPE_TOOLS, ...DRAWING_TOOLS, ...ADVANCED_TOOLS].map(
-                (tool) => {
-                  const Icon = tool.icon;
-                  return (
-                    <IconButton
-                      key={tool.tool}
-                      label={t(tool.labelKey)}
-                      onClick={() => onToolChange(tool.tool)}
-                      active={activeTool === tool.tool}
-                      disabled={disabled}
-                    >
-                      <Icon className="h-4 w-4" />
-                    </IconButton>
-                  );
-                }
-              )}
+              {TEXT_MARKUP_TOOLS.map((tool) => {
+                const Icon = tool.icon;
+                return (
+                  <IconButton
+                    key={tool.tool}
+                    label={t(tool.labelKey)}
+                    onClick={() => onToolChange(tool.tool)}
+                    active={activeTool === tool.tool}
+                    disabled={disabled}
+                    variant="ribbon"
+                  >
+                    <Icon className="h-4 w-4" />
+                  </IconButton>
+                );
+              })}
 
               <ToolPaletteDropdown
-                triggerIcon={Highlighter}
-                triggerLabel={t('viewer.annotate')}
+                triggerIcon={Square}
+                triggerLabel={t('viewer.shapes')}
                 activeTool={activeTool ?? undefined}
-                groups={annotationGroups}
+                groups={shapeGroupItems}
                 onSelect={(id) => onToolChange(id as AnnotationTool)}
                 disabled={disabled}
-                active={activeTool !== null && activeTool !== 'select' && activeTool !== 'hand'}
-                accent="indigo"
+                active={['rectangle', 'ellipse', 'line', 'arrow'].includes(activeTool ?? '')}
+                accent="green"
+                variant="ribbon"
+              />
+
+              {DRAWING_TOOLS.map((tool) => {
+                const Icon = tool.icon;
+                return (
+                  <IconButton
+                    key={tool.tool}
+                    label={t(tool.labelKey)}
+                    onClick={() => onToolChange(tool.tool)}
+                    active={activeTool === tool.tool}
+                    disabled={disabled}
+                    variant="ribbon"
+                  >
+                    <Icon className="h-4 w-4" />
+                  </IconButton>
+                );
+              })}
+
+              <ToolPaletteDropdown
+                triggerIcon={Wrench}
+                triggerLabel={t('viewer.more')}
+                activeTool={activeTool ?? undefined}
+                groups={moreGroupItems}
+                onSelect={(id) => onToolChange(id as AnnotationTool)}
+                disabled={disabled}
+                active={['stamp', 'redaction', 'form-field'].includes(activeTool ?? '')}
+                accent="amber"
+                variant="ribbon"
               />
             </ToolbarGroup>
 
@@ -563,6 +601,7 @@ export function ViewerToolbar({
                     onClick={onRedactionApply}
                     disabled={disabled}
                     className="bg-red-100 text-red-700 hover:bg-red-200 dark:bg-red-900/40 dark:text-red-300 dark:hover:bg-red-900/60"
+                    variant="ribbon"
                   >
                     <ShieldOff className="h-4 w-4" />
                   </IconButton>
@@ -580,16 +619,18 @@ export function ViewerToolbar({
                 label={t('viewer.deleteCurrentPage')}
                 onClick={onDeletePage}
                 disabled={disabled || !onDeletePage}
+                variant="ribbon"
               >
-                <X className="h-4 w-4" />
+                <Trash2 className="h-4 w-4" />
               </IconButton>
               {onRotateCCW && (
                 <IconButton
                   label={t('viewer.rotateLeft')}
                   onClick={onRotateCCW}
                   disabled={disabled}
+                  variant="ribbon"
                 >
-                  <ChevronsLeft className="h-4 w-4" />
+                  <RotateCcw className="h-4 w-4" />
                 </IconButton>
               )}
               {onRotateCW && (
@@ -597,17 +638,28 @@ export function ViewerToolbar({
                   label={t('viewer.rotateRight')}
                   onClick={onRotateCW}
                   disabled={disabled}
+                  variant="ribbon"
                 >
-                  <ChevronsRight className="h-4 w-4" />
+                  <RotateCw className="h-4 w-4" />
                 </IconButton>
               )}
               {onMerge && (
-                <IconButton label={t('viewer.mergePdf')} onClick={onMerge} disabled={disabled}>
+                <IconButton
+                  label={t('viewer.mergePdf')}
+                  onClick={onMerge}
+                  disabled={disabled}
+                  variant="ribbon"
+                >
                   <FilePlus2 className="h-4 w-4" />
                 </IconButton>
               )}
               {onSplit && (
-                <IconButton label={t('viewer.splitPdf')} onClick={onSplit} disabled={disabled}>
+                <IconButton
+                  label={t('viewer.splitPdf')}
+                  onClick={onSplit}
+                  disabled={disabled}
+                  variant="ribbon"
+                >
                   <Scissors className="h-4 w-4" />
                 </IconButton>
               )}
@@ -616,8 +668,9 @@ export function ViewerToolbar({
                   label={t('viewer.reorderPages')}
                   onClick={onReorder}
                   disabled={disabled}
+                  variant="ribbon"
                 >
-                  <ArrowRight className="h-4 w-4" />
+                  <ArrowUpDown className="h-4 w-4" />
                 </IconButton>
               )}
               {onExtract && (
@@ -625,6 +678,7 @@ export function ViewerToolbar({
                   label={t('viewer.extractPages')}
                   onClick={onExtract}
                   disabled={disabled}
+                  variant="ribbon"
                 >
                   <FileOutput className="h-4 w-4" />
                 </IconButton>
@@ -636,6 +690,7 @@ export function ViewerToolbar({
                 onSelect={handlePageOpSelect}
                 disabled={disabled}
                 accent="green"
+                variant="ribbon"
               />
             </ToolbarGroup>
           </>
@@ -646,7 +701,12 @@ export function ViewerToolbar({
           <>
             <ToolbarGroup label={t('viewer.tools')}>
               {onOcr && (
-                <IconButton label={t('viewer.ocr')} onClick={onOcr} disabled={disabled}>
+                <IconButton
+                  label={t('viewer.ocr')}
+                  onClick={onOcr}
+                  disabled={disabled}
+                  variant="ribbon"
+                >
                   <ScanText className="h-4 w-4" />
                 </IconButton>
               )}
@@ -655,17 +715,28 @@ export function ViewerToolbar({
                   label={t('viewer.exportText')}
                   onClick={onExportText}
                   disabled={disabled}
+                  variant="ribbon"
                 >
                   <FileText className="h-4 w-4" />
                 </IconButton>
               )}
               {onForms && (
-                <IconButton label={t('viewer.forms')} onClick={onForms} disabled={disabled}>
+                <IconButton
+                  label={t('viewer.forms')}
+                  onClick={onForms}
+                  disabled={disabled}
+                  variant="ribbon"
+                >
                   <FileOutput className="h-4 w-4" />
                 </IconButton>
               )}
               {onFlatten && (
-                <IconButton label={t('viewer.flatten')} onClick={onFlatten} disabled={disabled}>
+                <IconButton
+                  label={t('viewer.flatten')}
+                  onClick={onFlatten}
+                  disabled={disabled}
+                  variant="ribbon"
+                >
                   <Layers className="h-4 w-4" />
                 </IconButton>
               )}
@@ -674,6 +745,7 @@ export function ViewerToolbar({
                   label={t('viewer.createField')}
                   onClick={onCreateField}
                   disabled={disabled}
+                  variant="ribbon"
                 >
                   <TextCursorInput className="h-4 w-4" />
                 </IconButton>
@@ -683,6 +755,7 @@ export function ViewerToolbar({
                   label={t('viewer.passwordProtection')}
                   onClick={onPassword}
                   disabled={disabled}
+                  variant="ribbon"
                 >
                   <LockKeyhole className="h-4 w-4" />
                 </IconButton>
@@ -692,6 +765,7 @@ export function ViewerToolbar({
                   label={t('viewer.pdfToImages')}
                   onClick={onPdfToImages}
                   disabled={disabled}
+                  variant="ribbon"
                 >
                   <FileImage className="h-4 w-4" />
                 </IconButton>
@@ -701,6 +775,7 @@ export function ViewerToolbar({
                   label={t('viewer.imagesToPdf')}
                   onClick={onImagesToPdf}
                   disabled={disabled}
+                  variant="ribbon"
                 >
                   <Images className="h-4 w-4" />
                 </IconButton>
@@ -710,22 +785,27 @@ export function ViewerToolbar({
                   label={t('viewer.digitalSignature')}
                   onClick={onSignature}
                   disabled={disabled}
+                  variant="ribbon"
                 >
                   <PenTool className="h-4 w-4" />
                 </IconButton>
               )}
               {onCompare && (
-                <IconButton label={t('viewer.compareDocuments')} onClick={onCompare}>
+                <IconButton
+                  label={t('viewer.compareDocuments')}
+                  onClick={onCompare}
+                  variant="ribbon"
+                >
                   <GitCompare className="h-4 w-4" />
                 </IconButton>
               )}
               {onBatch && (
-                <IconButton label={t('viewer.batchProcessing')} onClick={onBatch}>
+                <IconButton label={t('viewer.batchProcessing')} onClick={onBatch} variant="ribbon">
                   <Layers className="h-4 w-4" />
                 </IconButton>
               )}
               {onValidate && (
-                <IconButton label={t('viewer.validatePdf')} onClick={onValidate}>
+                <IconButton label={t('viewer.validatePdf')} onClick={onValidate} variant="ribbon">
                   <ShieldCheck className="h-4 w-4" />
                 </IconButton>
               )}
@@ -734,6 +814,7 @@ export function ViewerToolbar({
                 onClick={onEditModeToggle}
                 active={editMode}
                 disabled={disabled}
+                variant="ribbon"
               >
                 <Edit3 className="h-4 w-4" />
               </IconButton>
@@ -749,6 +830,7 @@ export function ViewerToolbar({
                     onClick={onExportWithImages}
                     disabled={disabled}
                     className="bg-green-100 text-green-700 hover:bg-green-200 dark:bg-green-900/40 dark:text-green-300 dark:hover:bg-green-900/60"
+                    variant="ribbon"
                   >
                     <FileImage className="h-4 w-4" />
                   </IconButton>
