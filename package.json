@@ -1,7 +1,7 @@
 {
   "name": "crosspdf-studio",
   "private": true,
-  "version": "0.1.0",
+  "version": "0.3.0",
   "description": "Professional cross-platform PDF editor",
   "author": "CrossPDF Team",
   "main": "dist/main/index.cjs",
@@ -23,7 +23,7 @@
     "package:mac:zip": "CSC_IDENTITY_AUTO_DISCOVERY=false pnpm build && CSC_IDENTITY_AUTO_DISCOVERY=false electron-builder --mac zip",
     "package:mac:release": "CSC_IDENTITY_AUTO_DISCOVERY=false pnpm build && CSC_IDENTITY_AUTO_DISCOVERY=false electron-builder --mac dmg zip && bash scripts/prepare-release-artifacts.sh release && bash scripts/verify-update-metadata.sh release",
     "package:mac:signed": "node scripts/check-signing-env.cjs && pnpm build && electron-builder --mac",
-    "package:win": "pnpm build && electron-builder --win",
+    "package:win": "electron-builder --win nsis portable",
     "package:all": "pnpm build && electron-builder --mac --win",
     "package:dir": "pnpm build && electron-builder --dir",
     "postinstall": "electron-builder install-app-deps",
