@@ -178,7 +178,6 @@ const SHAPE_TOOLS: ToolDef[] = [
 const DRAWING_TOOLS: ToolDef[] = [{ tool: 'freehand', labelKey: 'viewer.freehand', icon: Pencil }];
 
 const ADVANCED_TOOLS: ToolDef[] = [
-  { tool: 'stamp', labelKey: 'viewer.addImage', icon: ImagePlus },
   { tool: 'redaction', labelKey: 'viewer.redaction', icon: ShieldOff },
   { tool: 'form-field', labelKey: 'viewer.createFormField', icon: TextCursorInput },
 ];
@@ -474,12 +473,6 @@ export function ViewerToolbar({
                   <RotateCw className="h-4 w-4" />
                 </IconButton>
               )}
-              <SegmentedControl
-                value={fitMode}
-                disabled={disabled}
-                onChange={onFitMode}
-                options={fitOptions}
-              />
               <IconButton
                 label={t('viewer.select')}
                 onClick={() => onToolChange('select')}
@@ -550,6 +543,16 @@ export function ViewerToolbar({
                 );
               })}
 
+              <IconButton
+                label={t('viewer.addImage')}
+                onClick={() => onToolChange('stamp')}
+                active={activeTool === 'stamp'}
+                disabled={disabled}
+                variant="ribbon"
+              >
+                <ImagePlus className="h-4 w-4" />
+              </IconButton>
+
               <ToolPaletteDropdown
                 triggerIcon={Square}
                 triggerLabel={t('viewer.shapes')}
@@ -585,7 +588,7 @@ export function ViewerToolbar({
                 groups={moreGroupItems}
                 onSelect={(id) => onToolChange(id as AnnotationTool)}
                 disabled={disabled}
-                active={['stamp', 'redaction', 'form-field'].includes(activeTool ?? '')}
+                active={['redaction', 'form-field'].includes(activeTool ?? '')}
                 accent="amber"
                 variant="ribbon"
               />
@@ -854,6 +857,12 @@ export function ViewerToolbar({
               { value: 'single', label: t('viewer.single') },
               { value: 'continuous', label: t('viewer.continuous') },
             ]}
+          />
+          <SegmentedControl
+            value={fitMode}
+            disabled={disabled}
+            onChange={onFitMode}
+            options={fitOptions}
           />
         </ToolbarGroup>
 
